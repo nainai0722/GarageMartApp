@@ -21,8 +21,8 @@
                                 <rect key="frame" x="16" y="103" width="361" height="715"/>
                                 <standardMapConfiguration key="preferredConfiguration"/>
                             </mapView>
-                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ULQ-7E-fcW">
-                                <rect key="frame" x="261" y="117" width="100" height="100"/>
+                            <button opaque="NO" contentMode="scaleToFill" misplaced="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ULQ-7E-fcW">
+                                <rect key="frame" x="262" y="187" width="100" height="100"/>
                                 <constraints>
                                     <constraint firstAttribute="height" constant="100" id="Joc-uJ-ff1"/>
                                     <constraint firstAttribute="width" constant="100" id="VOo-W0-PMD"/>
@@ -32,6 +32,11 @@
                                 <connections>
                                     <action selector="toItemRegistrationView:" destination="Y6W-OH-hqX" eventType="touchUpInside" id="nCg-6U-2m2"/>
                                 </connections>
+                            </button>
+                            <button opaque="NO" contentMode="scaleToFill" misplaced="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="oiN-Af-aQl">
+                                <rect key="frame" x="128" y="388" width="137" height="76"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="filled" title="登録画面へ"/>
                             </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="vDu-zF-Fre"/>
@@ -43,6 +48,8 @@
                             <constraint firstItem="vDu-zF-Fre" firstAttribute="top" secondItem="ULQ-7E-fcW" secondAttribute="top" constant="-14" id="JcP-Zp-B0g"/>
                             <constraint firstItem="vDu-zF-Fre" firstAttribute="trailing" secondItem="BU6-Nk-7Ws" secondAttribute="trailing" constant="16" id="Zmt-Eq-zxt"/>
                             <constraint firstItem="BU6-Nk-7Ws" firstAttribute="bottom" secondItem="vDu-zF-Fre" secondAttribute="bottom" id="v4y-R1-F60"/>
+                            <constraint firstItem="oiN-Af-aQl" firstAttribute="centerX" secondItem="5EZ-qb-Rvc" secondAttribute="centerX" id="xuQ-Ez-8Ww"/>
+                            <constraint firstItem="oiN-Af-aQl" firstAttribute="centerY" secondItem="5EZ-qb-Rvc" secondAttribute="centerY" id="z2n-rD-o1C"/>
                         </constraints>
                     </view>
                     <navigationItem key="navigationItem" id="ghj-XC-i07"/>

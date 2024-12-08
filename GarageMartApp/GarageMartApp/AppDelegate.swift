@@ -10,10 +10,19 @@ import UIKit
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
-
+    var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        // ウィンドウを作成
+        window = UIWindow(frame: UIScreen.main.bounds)
+        
+        // 最初の画面を設定
+        let homeViewController = HomeViewController() // 変更に応じて適切なVC名を
+        window?.rootViewController = UINavigationController(rootViewController: homeViewController)
+        
+        // 表示
+        window?.makeKeyAndVisible()
         return true
     }
 

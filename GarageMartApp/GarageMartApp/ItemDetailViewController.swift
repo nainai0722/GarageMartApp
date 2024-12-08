@@ -7,12 +7,22 @@
 
 import UIKit
 
-class ItemDetalViewController: UIViewController {
-
+class ItemDetailViewController: UIViewController {
+    var item: Item?
+    @IBOutlet weak var imageView: UIImageView!
+    @IBOutlet weak var name: UILabel!
+    @IBOutlet weak var price: UILabel!
+    @IBOutlet weak var descriptionText: UITextView!
+    @IBOutlet weak var category: UILabel!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // Do any additional setup after loading the view.
+        guard let item = item else { return }
+        
+        name.text = item.name
+        price.text = String(item.price)
+        descriptionText.text = item.description
+        category.text = item.category
     }
     
 

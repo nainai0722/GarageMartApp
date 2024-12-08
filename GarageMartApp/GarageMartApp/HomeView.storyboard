@@ -46,6 +46,9 @@
                         </constraints>
                     </view>
                     <navigationItem key="navigationItem" id="ghj-XC-i07"/>
+                    <connections>
+                        <outlet property="mapView" destination="BU6-Nk-7Ws" id="oUv-c4-23j"/>
+                    </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="Ief-a0-LHa" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>

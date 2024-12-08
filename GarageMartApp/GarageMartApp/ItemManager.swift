@@ -22,6 +22,19 @@ struct ItemManager {
         return items
     }
 
+    /// 指定した条件に一致するアイテムの配列を返します。
+    /// - Parameter predicate: アイテムをフィルタリングする条件
+    /// - Returns: 条件に一致するアイテムの配列
+    func items(where predicate: (Item) -> Bool) -> [Item] {
+        return items.filter(predicate)
+        // 使用例
+//        let filteredByName = items(where: { $0.name == "Sample Item" })
+//        let filteredByDescription = items(where: { $0.description == "Sample Description" })
+    }
+
+
+
+    
     /// 指定した名前と一致するアイテムの配列を返します。
     /// - Parameter name: 取得対象の名前
     /// - Returns: 指定された名前と一致するアイテムの配列

@@ -37,6 +37,9 @@
                                 <rect key="frame" x="128" y="388" width="137" height="76"/>
                                 <state key="normal" title="Button"/>
                                 <buttonConfiguration key="configuration" style="filled" title="登録画面へ"/>
+                                <connections>
+                                    <action selector="toGroupLoginView:" destination="Y6W-OH-hqX" eventType="touchUpInside" id="8Qr-dN-5fZ"/>
+                                </connections>
                             </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="vDu-zF-Fre"/>
@@ -54,6 +57,7 @@
                     </view>
                     <navigationItem key="navigationItem" id="ghj-XC-i07"/>
                     <connections>
+                        <outlet property="groupLoginButton" destination="oiN-Af-aQl" id="6Mo-hX-OPj"/>
                         <outlet property="mapView" destination="BU6-Nk-7Ws" id="oUv-c4-23j"/>
                     </connections>
                 </viewController>

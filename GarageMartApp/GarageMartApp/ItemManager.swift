@@ -18,6 +18,24 @@ struct ItemManager {
         return items.count
     }
     
+    mutating func addItem(item:Item){
+        items.append(item)
+    }
+    
+    mutating func removeItem(item:Item){
+        items.removeAll(where: {$0 == item})
+    }
+    
+    mutating func debugItems() -> [Item]{
+        if items.isEmpty {
+            items = [
+                Item(name: "test1", description: "商品説明内容です", price: 100, category: "食品", imageUrl: "example.com", location: Location(latitude: 34.897987, longitude: 135.398693), stock: 10, stockCategory: "少しだけ", groupId: "myGroup",userId: "nana"),
+                Item(name: "test2", description: "商品説明内容です", price: 0, category: "おもちゃ", imageUrl: "example.com", location: Location(latitude: 34.897939, longitude: 135.398639), stock: 1, stockCategory: "一点限定", groupId: "myGroup",userId: "nana")
+            ]
+        }
+        return items
+    }
+    
     func getAllItems() -> [Item] {
         return items
     }

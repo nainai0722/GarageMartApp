@@ -8,32 +8,70 @@
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
-        <!--View Controller-->
+        <!--Group Login View Controller-->
         <scene sceneID="s0d-6b-0kx">
             <objects>
-                <viewController id="Y6W-OH-hqX" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="GroupLoginViewController" id="Y6W-OH-hqX" customClass="GroupLoginViewController" customModule="GarageMartApp" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="5EZ-qb-Rvc">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="uW2-8q-A58">
-                                <rect key="frame" x="159" y="409" width="75" height="35"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="uW2-8q-A58">
+                                <rect key="frame" x="159" y="408.66666666666669" width="75" height="35"/>
                                 <state key="normal" title="Button"/>
                                 <buttonConfiguration key="configuration" style="filled" title="Button"/>
                                 <connections>
+                                    <action selector="loginButtonTapped:" destination="Y6W-OH-hqX" eventType="touchUpInside" id="8dg-az-OSm"/>
                                     <action selector="toUserRegistationView:" destination="MSd-Rc-kOa" eventType="touchUpInside" id="GGN-7K-iUl"/>
                                 </connections>
                             </button>
+                            <textField opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="248" misplaced="YES" contentHorizontalAlignment="left" contentVerticalAlignment="center" borderStyle="roundedRect" textAlignment="natural" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="G2t-YI-nbo">
+                                <rect key="frame" x="16" y="268" width="361" height="34"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                <textInputTraits key="textInputTraits" textContentType="password"/>
+                            </textField>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="グループID" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="8Va-Ym-gMO">
+                                <rect key="frame" x="16" y="153" width="82" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="パスワード" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="qaz-4i-32O">
+                                <rect key="frame" x="16" y="239" width="80" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <textField opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="248" misplaced="YES" contentHorizontalAlignment="left" contentVerticalAlignment="center" borderStyle="roundedRect" textAlignment="natural" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="Av2-E2-EaT">
+                                <rect key="frame" x="16" y="182" width="361" height="34"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                <textInputTraits key="textInputTraits" textContentType="organization"/>
+                            </textField>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="vDu-zF-Fre"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <constraints>
+                            <constraint firstItem="G2t-YI-nbo" firstAttribute="top" secondItem="qaz-4i-32O" secondAttribute="bottom" constant="8" symbolic="YES" id="1hd-QA-wUs"/>
+                            <constraint firstItem="G2t-YI-nbo" firstAttribute="leading" secondItem="8Va-Ym-gMO" secondAttribute="leading" id="2ym-yj-SDG"/>
+                            <constraint firstItem="8Va-Ym-gMO" firstAttribute="top" secondItem="vDu-zF-Fre" secondAttribute="top" constant="94" id="Da8-Dl-6Zx"/>
+                            <constraint firstItem="Av2-E2-EaT" firstAttribute="leading" secondItem="8Va-Ym-gMO" secondAttribute="leading" id="Gnn-YM-j4g"/>
+                            <constraint firstItem="qaz-4i-32O" firstAttribute="leading" secondItem="8Va-Ym-gMO" secondAttribute="leading" id="JpI-wg-xcy"/>
+                            <constraint firstItem="uW2-8q-A58" firstAttribute="centerX" secondItem="5EZ-qb-Rvc" secondAttribute="centerX" id="TP4-Vx-LKy"/>
+                            <constraint firstItem="Av2-E2-EaT" firstAttribute="top" secondItem="8Va-Ym-gMO" secondAttribute="bottom" constant="8" symbolic="YES" id="e6b-uG-AUe"/>
+                            <constraint firstItem="8Va-Ym-gMO" firstAttribute="leading" secondItem="vDu-zF-Fre" secondAttribute="leading" constant="16" id="id2-BE-Wwa"/>
+                            <constraint firstItem="uW2-8q-A58" firstAttribute="centerY" secondItem="5EZ-qb-Rvc" secondAttribute="centerY" id="nVp-5j-Gea"/>
+                            <constraint firstItem="qaz-4i-32O" firstAttribute="top" secondItem="Av2-E2-EaT" secondAttribute="bottom" constant="23" id="za5-Al-4f3"/>
+                        </constraints>
                     </view>
+                    <connections>
+                        <outlet property="groupName" destination="Av2-E2-EaT" id="TSo-AJ-1EO"/>
+                        <outlet property="groupPassword" destination="G2t-YI-nbo" id="QPU-ua-iZU"/>
+                    </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="Ief-a0-LHa" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
                 <exit id="MSd-Rc-kOa" userLabel="Exit" sceneMemberID="exit"/>
             </objects>
-            <point key="canvasLocation" x="1" y="4"/>
+            <point key="canvasLocation" x="0.76335877862595414" y="3.5211267605633805"/>
         </scene>
     </scenes>
     <resources>

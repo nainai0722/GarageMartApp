@@ -13,6 +13,23 @@ import SwiftUI
 class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManagerDelegate, UIActionSheetDelegate {
     @IBOutlet weak var mapView: MKMapView!
     let searchBar = UISearchBar()
+    private var categories: [ItemCategory] = ItemCategory.allCases
+    private var stocks: [StockCategory] = StockCategory.allCases
+    private lazy var scrollView: UIScrollView = {
+        let scrollView = UIScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        return scrollView
+    }()
+    
+    private lazy var stackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .horizontal
+        stackView.spacing = 10
+        stackView.alignment = .center
+        stackView.distribution = .equalSpacing
+        return stackView
+    }()
     let locationManager = CLLocationManager()
     var currentLocation: CLLocationCoordinate2D?
     var items:[Item] = []
@@ -41,6 +58,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
         searchBar.delegate = self
         searchBar.placeholder = "住所検索"
         navigationItem.titleView = searchBar
+        setupCategoryButtons()
         let longPressRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress))
         longPressRecognizer.minimumPressDuration = 0.5 // 長押し判定の時間（秒）
         mapView.addGestureRecognizer(longPressRecognizer)
@@ -63,9 +81,53 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
         // ユーザーの現在位置を表示する設定
         mapView.showsUserLocation = true
         
-        generateCategoryButton()
-        
         setupKeyboardDismissTapGesture()
+    }
+    
+    private func setupCategoryButtons() {
+        view.addSubview(scrollView)
+        scrollView.addSubview(stackView)
+        
+        NSLayoutConstraint.activate([
+            // ScrollViewの制約
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 5), // view.safeAreaLayoutGuideで上部に余白を設定
+            scrollView.leftAnchor.constraint(equalTo: view.leftAnchor),
+            scrollView.rightAnchor.constraint(equalTo: view.rightAnchor),
+            scrollView.heightAnchor.constraint(equalToConstant: 60), // 高さ
+            
+            // StackViewの制約
+            stackView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            stackView.leftAnchor.constraint(equalTo: scrollView.leftAnchor),
+            stackView.rightAnchor.constraint(equalTo: scrollView.rightAnchor),
+            stackView.heightAnchor.constraint(equalTo: scrollView.heightAnchor)
+        ])
+
+        // カテゴリボタンをStackViewに追加
+        for (index, category) in categories.enumerated() {
+            let button = UIButton()
+            button.setTitle(category.rawValue, for: .normal)
+            button.backgroundColor = .systemBlue
+            button.layer.cornerRadius = 10
+            button.tag = index
+            button.setTitleColor(.white, for: .normal)
+            button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 15, bottom: 10, right: 15)
+            button.addTarget(self, action: #selector(categoryButtonTapped(_:)), for: .touchUpInside)
+            
+            stackView.addArrangedSubview(button)
+        }
+        // ストックボタンをStackViewに追加
+        for (index, stock) in stocks.enumerated() {
+            let button = UIButton()
+            button.setTitle(stock.rawValue, for: .normal)
+            button.backgroundColor = .systemBlue
+            button.layer.cornerRadius = 10
+            button.tag = index
+            button.setTitleColor(.white, for: .normal)
+            button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 15, bottom: 10, right: 15)
+            button.addTarget(self, action: #selector(categoryButtonTapped(_:)), for: .touchUpInside)
+            
+            stackView.addArrangedSubview(button)
+        }
     }
     
     private func setupKeyboardDismissTapGesture() {
@@ -78,37 +140,29 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     @objc private func dismissKeyboard() {
         view.endEditing(true)
     }
-
-    func generateCategoryButton() {
-        let categories = ["食品", "おもちゃ","日用品", "その他","すべて"] // ItemCategoryのデータ
-        var buttons: [UIButton] = []
-        // ボタン生成
-        for (index, category) in categories.enumerated() {
-            let button = UIButton(type: .custom)
-            button.frame = CGRect(x: view.frame.width - 120, y: view.frame.height - 150 - CGFloat(index * 70), width: 100, height: 60)
-            button.backgroundColor = .systemBlue
-            button.layer.cornerRadius = 30
-            button.setTitle(category, for: .normal)
-            button.tag = index // ボタン識別用
-            if category == "すべて" {
-                button.addTarget(self, action: #selector(allCategoriesButtonTapped), for: .touchUpInside)
-            }else{
-                button.addTarget(self, action: #selector(categoryButtonTapped(_:)), for: .touchUpInside)
-            }
-            // 配列に追加
-            buttons.append(button)
-            view.addSubview(button) // 画面に追加
+    
+    @objc func categoryButtonTapped(_ sender: UIButton) {
+        if sender.tag < categories.count {
+            let category = categories[sender.tag]
+            print("Selected category: \(category.rawValue)")
+            print("\(category.rawValue) ボタンがタップされました！")
+            focusOnCategory(category: category)
+        } else {
+            print("Invalid tag, out of bounds")
         }
     }
     
-    @objc func categoryButtonTapped(_ sender: UIButton) {
-        let categories = ["食品", "おもちゃ","日用品", "その他"] // ItemCategoryのデータ
-        let selectedCategory = categories[sender.tag]
-        print("\(selectedCategory) ボタンがタップされました！")
-
-        // 選択されたカテゴリに基づいて地図を操作する関数を呼び出す
-        focusOnCategory(category: selectedCategory)
+    @objc func stockButtonTapped(_ sender: UIButton) {
+        if sender.tag < stocks.count {
+            let stock = stocks[sender.tag]
+            print("Selected stock: \(stock.rawValue)")
+            print("\(stock.rawValue) ボタンがタップされました！")
+            focusOnStock(stock: stock)
+        } else {
+            print("Invalid tag, out of bounds")
+        }
     }
+    
     
     @IBAction func moveToCurrentLocation(_ sender: Any) {
         moveToUserLocation()
@@ -127,7 +181,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     }
 
     
-    func focusOnCategory(category: String) {
+    func focusOnCategory(category: ItemCategory) {
         // 現在表示中の地図領域を取得
         let visibleMapRect = mapView.visibleMapRect
         
@@ -135,7 +189,11 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
         let filteredItems = items.filter { item in
             let coordinate = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
             let point = MKMapPoint(coordinate)
-            return visibleMapRect.contains(point) && item.category.rawValue == category
+            if category == .all {
+                return visibleMapRect.contains(point)
+            }else{
+                return visibleMapRect.contains(point) && item.category == category
+            }
         }
 //        print("Item Category: \(item.category.rawValue), Filter Category: \(category)")
         
@@ -153,6 +211,34 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
             return EventAnnotation(event: event)
         }
     }
+    
+    func focusOnStock(stock: StockCategory) {
+        // 現在表示中の地図領域を取得
+        let visibleMapRect = mapView.visibleMapRect
+        
+        // アイテムとイベントをフィルタリングしてアノテーションを追加
+        let filteredItems = items.filter { item in
+            let coordinate = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
+            let point = MKMapPoint(coordinate)
+            return visibleMapRect.contains(point) && item.stockCategory == stock
+        }
+//        print("Item Category: \(item.category.rawValue), Filter Category: \(category)")
+        
+        let filteredEvents = events.filter { event in
+            let coordinate = CLLocationCoordinate2D(latitude: event.coordinate.latitude, longitude: event.coordinate.longitude)
+            let point = MKMapPoint(coordinate)
+            return visibleMapRect.contains(point)
+        }
+        // マップ上のアノテーションを更新
+        mapView.removeAnnotations(mapView.annotations)
+        addAnnotationsToMap(to: filteredItems) { item in
+            return ItemAnnotation(item: item)
+        }
+        addAnnotationsToMap(to: filteredEvents) { event in
+            return EventAnnotation(event: event)
+        }
+    }
+    
     
     @objc func allCategoriesButtonTapped() {
         // 現在表示中の地図領域を取得

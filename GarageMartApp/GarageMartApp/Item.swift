@@ -15,6 +15,7 @@ enum ItemCategory:String,Codable,Equatable, Hashable,CaseIterable {
     case toy = "おもちゃ"
     case dailyGoods = "日用品"
     case others = "その他"
+    case all = "すべて"
 }
 
 enum StockCategory:String,Codable,Equatable, Hashable,CaseIterable {

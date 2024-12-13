@@ -132,12 +132,10 @@ struct SegmentCategoryPickerView: View {
     
     var body: some View {
         VStack {
-            Text("在庫状況を選択してください")
-            Picker("Options", selection: $selectedCategory) {
-                ForEach(ItemCategory.allCases, id: \.self) { category in
-                    Text(category.rawValue)
-                        .tag(category)
-                }
+            Text("カテゴリーを選択してください")
+            ForEach(ItemCategory.allCases.filter { $0 != .all }, id: \.self) { category in
+                        Text(category.rawValue)
+                            .tag(category)
             }
             .pickerStyle(SegmentedPickerStyle())
             

@@ -24,6 +24,6 @@ class HalfItemDetailViewController: UIViewController,UIScrollViewDelegate{
         name.text = item.name
         price.text = String(item.price)
         descriptionText.text = item.description
-        category.text = item.category
+        category.text = item.category.rawValue
     }
 }

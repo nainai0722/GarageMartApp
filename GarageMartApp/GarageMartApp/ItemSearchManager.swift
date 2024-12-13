@@ -1,43 +1,18 @@
 //
-//  ItemManager.swift
+//  ItemSearchManager.swift
 //  GarageMartApp
 //
-//  Created by 指原奈々 on 2024/12/07.
+//  Created by 指原奈々 on 2024/12/11.
 //
 
 import Foundation
 
-/// アイテムを扱うマネージャー構造体
-struct ItemManager {
+/// アイテムを条件絞り込んで検索する
+class ItemSearchManager {
     var items:[Item] = []
     
-    /// アイテムの数を返却する
-    ///
-    /// - Returns: アイテムの数
-    func getItemNum() -> Int {
-        return items.count
-    }
-    
-    mutating func addItem(item:Item){
-        items.append(item)
-    }
-    
-    mutating func removeItem(item:Item){
-        items.removeAll(where: {$0 == item})
-    }
-    
-    mutating func debugItems() -> [Item]{
-        if items.isEmpty {
-            items = [
-                Item(name: "test1", description: "商品説明内容です", price: 100, category: "食品", imageUrl: "example.com", location: Location(latitude: 34.897987, longitude: 135.398693), stock: 10, stockCategory: "少しだけ", groupId: "myGroup",userId: "nana"),
-                Item(name: "test2", description: "商品説明内容です", price: 0, category: "おもちゃ", imageUrl: "example.com", location: Location(latitude: 34.897939, longitude: 135.398639), stock: 1, stockCategory: "一点限定", groupId: "myGroup",userId: "nana")
-            ]
-        }
-        return items
-    }
-    
-    func getAllItems() -> [Item] {
-        return items
+    init(items: [Item]) {
+        self.items = items
     }
 
     /// 指定した条件に一致するアイテムの配列を返します。
@@ -50,9 +25,6 @@ struct ItemManager {
 //        let filteredByDescription = items(where: { $0.description == "Sample Description" })
     }
 
-
-
-    
     /// 指定した名前と一致するアイテムの配列を返します。
     /// - Parameter name: 取得対象の名前
     /// - Returns: 指定された名前と一致するアイテムの配列
@@ -118,11 +90,11 @@ struct ItemManager {
     /// - Parameter category: 取得対象のカテゴリ（`ItemCategory`）
     /// - Returns: 指定されたカテゴリに属するアイテムの配列
     func items(in category: ItemCategory)  -> [Item] {
-        return items.filter(){ $0.category == category.rawValue }
+        return items.filter(){ $0.category == category }
     }
     
-    func items(in location:Location) -> [Item] {
-        return items.filter(){ $0.location.latitude == location.latitude && $0.location.longitude == location.longitude }
+    func items(in location:Coordinate) -> [Item] {
+        return items.filter(){ $0.coordinate.latitude == location.latitude && $0.coordinate.longitude == location.longitude }
     }
     
     /// 指定した範囲内にあるアイテムを返す関数
@@ -130,13 +102,13 @@ struct ItemManager {
     ///   - location: 検索の基準となる位置情報
     ///   - rangeKm: 検索範囲（キロメートル）
     /// - Returns: 指定範囲内のアイテム配列
-    func items(near location: Location, within rangeKm: Double) -> [Item] {
+    func items(near location: Coordinate, within rangeKm: Double) -> [Item] {
         return items.filter { item in
             let distance = haversineDistance(
                 lat1: location.latitude,
                 lon1: location.longitude,
-                lat2: item.location.latitude,
-                lon2: item.location.longitude
+                lat2: item.coordinate.latitude,
+                lon2: item.coordinate.longitude
             )
             return distance <= rangeKm
         }

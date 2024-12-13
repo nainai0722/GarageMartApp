@@ -7,14 +7,14 @@
 
 import MapKit
 
-/// 地図上に表示するアノテーションの情報を保持するクラス
+/// 地図上に表示するアイテムアノテーションの情報を保持するクラス
 class ItemAnnotation: MKPointAnnotation {
     var item: Item
     init(item: Item) {
         self.item = item
         super.init()
         self.title = item.name
-        self.subtitle = item.category
-        self.coordinate = CLLocationCoordinate2D(latitude: item.location.latitude, longitude: item.location.longitude)
+        self.subtitle = item.category.rawValue
+        self.coordinate = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
     }
 }

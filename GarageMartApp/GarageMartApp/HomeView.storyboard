@@ -21,18 +21,6 @@
                                 <rect key="frame" x="16" y="103" width="361" height="715"/>
                                 <standardMapConfiguration key="preferredConfiguration"/>
                             </mapView>
-                            <button opaque="NO" contentMode="scaleToFill" misplaced="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ULQ-7E-fcW">
-                                <rect key="frame" x="262" y="187" width="100" height="100"/>
-                                <constraints>
-                                    <constraint firstAttribute="height" constant="100" id="Joc-uJ-ff1"/>
-                                    <constraint firstAttribute="width" constant="100" id="VOo-W0-PMD"/>
-                                </constraints>
-                                <state key="normal" title="Button"/>
-                                <buttonConfiguration key="configuration" style="filled" title="商品登録"/>
-                                <connections>
-                                    <action selector="toItemRegistrationView:" destination="Y6W-OH-hqX" eventType="touchUpInside" id="nCg-6U-2m2"/>
-                                </connections>
-                            </button>
                             <button opaque="NO" contentMode="scaleToFill" misplaced="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="oiN-Af-aQl">
                                 <rect key="frame" x="128" y="388" width="137" height="76"/>
                                 <state key="normal" title="Button"/>
@@ -41,14 +29,22 @@
                                     <action selector="toGroupLoginView:" destination="Y6W-OH-hqX" eventType="touchUpInside" id="8Qr-dN-5fZ"/>
                                 </connections>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="UBW-zk-4Lu">
+                                <rect key="frame" x="32" y="767" width="98" height="35"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="filled" image="location.fill" catalog="system" title="現在地"/>
+                                <connections>
+                                    <action selector="moveToCurrentLocation:" destination="Y6W-OH-hqX" eventType="touchUpInside" id="TRb-IH-Zg1"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="vDu-zF-Fre"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
-                            <constraint firstAttribute="trailingMargin" secondItem="ULQ-7E-fcW" secondAttribute="trailing" constant="16" id="9KJ-nS-gjm"/>
                             <constraint firstItem="BU6-Nk-7Ws" firstAttribute="leading" secondItem="vDu-zF-Fre" secondAttribute="leading" constant="16" id="9M3-l7-QYw"/>
+                            <constraint firstItem="UBW-zk-4Lu" firstAttribute="leading" secondItem="BU6-Nk-7Ws" secondAttribute="leading" constant="16" id="Bmo-Es-Wpk"/>
                             <constraint firstItem="BU6-Nk-7Ws" firstAttribute="top" secondItem="vDu-zF-Fre" secondAttribute="top" id="HcS-WO-o4r"/>
-                            <constraint firstItem="vDu-zF-Fre" firstAttribute="top" secondItem="ULQ-7E-fcW" secondAttribute="top" constant="-14" id="JcP-Zp-B0g"/>
+                            <constraint firstItem="BU6-Nk-7Ws" firstAttribute="bottom" secondItem="UBW-zk-4Lu" secondAttribute="bottom" constant="16" id="WGF-7P-uhI"/>
                             <constraint firstItem="vDu-zF-Fre" firstAttribute="trailing" secondItem="BU6-Nk-7Ws" secondAttribute="trailing" constant="16" id="Zmt-Eq-zxt"/>
                             <constraint firstItem="BU6-Nk-7Ws" firstAttribute="bottom" secondItem="vDu-zF-Fre" secondAttribute="bottom" id="v4y-R1-F60"/>
                             <constraint firstItem="oiN-Af-aQl" firstAttribute="centerX" secondItem="5EZ-qb-Rvc" secondAttribute="centerX" id="xuQ-Ez-8Ww"/>
@@ -85,6 +81,7 @@
         </scene>
     </scenes>
     <resources>
+        <image name="location.fill" catalog="system" width="128" height="119"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>

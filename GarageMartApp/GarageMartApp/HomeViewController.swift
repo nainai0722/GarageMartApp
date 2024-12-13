@@ -8,18 +8,38 @@
 import UIKit
 import MapKit
 import CoreLocation
+import SwiftUI
 
-class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManagerDelegate {
+class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManagerDelegate, UIActionSheetDelegate {
     @IBOutlet weak var mapView: MKMapView!
     let searchBar = UISearchBar()
     let locationManager = CLLocationManager()
+    var currentLocation: CLLocationCoordinate2D?
     var items:[Item] = []
+    var events:[Event] = []
+    private var isItemDetailPresented = false
     
     @IBOutlet weak var groupLoginButton: UIButton!
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+//        UserDefaults.standard.removeObject(forKey:  "items")
+//        UserDefaults.standard.removeObject(forKey:  "events")
+        
+        items = ItemPersistenceManager().load()
+        events = EventPersistenceManager().load()
+        addAnnotationsToMap(to: items){ item in
+            return ItemAnnotation(item: item)
+        }
+        addAnnotationsToMap(to: events){ event in
+            return EventAnnotation(event: event)
+        }
+    }
     override func viewDidLoad() {
         super.viewDidLoad()
+
         searchBar.delegate = self
-        searchBar.placeholder = "アイテム検索"
+        searchBar.placeholder = "住所検索"
         navigationItem.titleView = searchBar
         let longPressRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress))
         longPressRecognizer.minimumPressDuration = 0.5 // 長押し判定の時間（秒）
@@ -29,19 +49,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
         // デバッグ用のグループ情報を設定する
         checkDebugUserGroup()
         checkLoginState()
-        var itemManager = ItemManager()
-        items = itemManager.debugItems()
-        // 各アイテムの位置にアノテーションを追加
-        for item in items {
-            let annotation = ItemAnnotation(item: item)
-            mapView.addAnnotation(annotation)
-        }
-//        let visibleAnnotations = mapView.annotations.filter { $0 is MKPointAnnotation }
-//        let visibleAnnotationCount = visibleAnnotations.count
-//        print("表示されているアノテーションの数: \(visibleAnnotationCount)")
 
-//        let region = currentLocation()
-//        mapView.setRegion(region, animated: true)
         // 位置情報マネージャの設定
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
@@ -57,15 +65,27 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
         
         generateCategoryButton()
         
+        setupKeyboardDismissTapGesture()
     }
     
+    private func setupKeyboardDismissTapGesture() {
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        // View全体で検出するためにキャンセルイベントを無視する
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
+    }
+    
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
+    }
+
     func generateCategoryButton() {
-        let categories = ["食品", "おもちゃ", "その他","すべて"] // ItemCategoryのデータ
+        let categories = ["食品", "おもちゃ","日用品", "その他","すべて"] // ItemCategoryのデータ
         var buttons: [UIButton] = []
         // ボタン生成
         for (index, category) in categories.enumerated() {
             let button = UIButton(type: .custom)
-            button.frame = CGRect(x: view.frame.width - 80, y: view.frame.height - 150 - CGFloat(index * 70), width: 60, height: 60)
+            button.frame = CGRect(x: view.frame.width - 120, y: view.frame.height - 150 - CGFloat(index * 70), width: 100, height: 60)
             button.backgroundColor = .systemBlue
             button.layer.cornerRadius = 30
             button.setTitle(category, for: .normal)
@@ -82,7 +102,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     }
     
     @objc func categoryButtonTapped(_ sender: UIButton) {
-        let categories = ["食品", "おもちゃ", "その他"] // ItemCategoryのデータ
+        let categories = ["食品", "おもちゃ","日用品", "その他"] // ItemCategoryのデータ
         let selectedCategory = categories[sender.tag]
         print("\(selectedCategory) ボタンがタップされました！")
 
@@ -90,86 +110,130 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
         focusOnCategory(category: selectedCategory)
     }
     
-    func focusOnCategory(category: String) {
-        let filteredItems = items.filter { $0.category == category }
-        guard !filteredItems.isEmpty else { return }
-
-        var coordinates: [CLLocationCoordinate2D] = []
-        for item in filteredItems {
-            let coordinate = CLLocationCoordinate2D(latitude: item.location.latitude, longitude: item.location.longitude)
-            coordinates.append(coordinate)
+    @IBAction func moveToCurrentLocation(_ sender: Any) {
+        moveToUserLocation()
+    }
+    func moveToUserLocation() {
+        guard let userLocation = mapView.userLocation.location else {
+            print("現在地が取得できません")
+            return
         }
-
-        let annotations = coordinates.map { coordinate -> MKPointAnnotation in
-            let annotation = MKPointAnnotation()
-            annotation.coordinate = coordinate
-            return annotation
-        }
-        mapView.addAnnotations(annotations)
-
-        // 中心座標を計算
-        let centerLatitude = coordinates.map { $0.latitude }.reduce(0, +) / Double(coordinates.count)
-        let centerLongitude = coordinates.map { $0.longitude }.reduce(0, +) / Double(coordinates.count)
-        let centerCoordinate = CLLocationCoordinate2D(latitude: centerLatitude, longitude: centerLongitude)
-
-        // 中心点を基にMKCoordinateRegionを作成
-        let region = MKCoordinateRegion(center: centerCoordinate, latitudinalMeters: 500, longitudinalMeters: 500)
-
+        
+        let region = MKCoordinateRegion(
+            center: userLocation.coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+        )
         mapView.setRegion(region, animated: true)
+    }
+
+    
+    func focusOnCategory(category: String) {
+        // 現在表示中の地図領域を取得
+        let visibleMapRect = mapView.visibleMapRect
+        
+        // アイテムとイベントをフィルタリングしてアノテーションを追加
+        let filteredItems = items.filter { item in
+            let coordinate = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
+            let point = MKMapPoint(coordinate)
+            return visibleMapRect.contains(point) && item.category.rawValue == category
+        }
+//        print("Item Category: \(item.category.rawValue), Filter Category: \(category)")
+        
+        let filteredEvents = events.filter { event in
+            let coordinate = CLLocationCoordinate2D(latitude: event.coordinate.latitude, longitude: event.coordinate.longitude)
+            let point = MKMapPoint(coordinate)
+            return visibleMapRect.contains(point)
+        }
+        // マップ上のアノテーションを更新
+        mapView.removeAnnotations(mapView.annotations)
+        addAnnotationsToMap(to: filteredItems) { item in
+            return ItemAnnotation(item: item)
+        }
+        addAnnotationsToMap(to: filteredEvents) { event in
+            return EventAnnotation(event: event)
+        }
     }
     
     @objc func allCategoriesButtonTapped() {
-        // 全ての座標を取得
-        var allCoordinates: [CLLocationCoordinate2D] = []
-        for item in items {
-            let coordinate = CLLocationCoordinate2D(latitude: item.location.latitude, longitude: item.location.longitude)
-            allCoordinates.append(coordinate)
-        }
-        
-        // 地図の表示範囲を全ての座標に合わせる
-        fitMapToCoordinates(allCoordinates)
-    }
-
-    // 地図を全座標に合わせるメソッド
-    func fitMapToCoordinates(_ coordinates: [CLLocationCoordinate2D]) {
-        guard !coordinates.isEmpty else { return }
-        
-        // 座標の最小・最大値を計算
-        var minLat = coordinates.first!.latitude
-        var maxLat = coordinates.first!.latitude
-        var minLon = coordinates.first!.longitude
-        var maxLon = coordinates.first!.longitude
-        
-        for coord in coordinates {
-            minLat = min(minLat, coord.latitude)
-            maxLat = max(maxLat, coord.latitude)
-            minLon = min(minLon, coord.longitude)
-            maxLon = max(maxLon, coord.longitude)
-        }
-        
-        // 緯度・経度の中心を計算
-        let centerLat = (minLat + maxLat) / 2
-        let centerLon = (minLon + maxLon) / 2
-        let center = CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon)
-        
-        // 緯度・経度の範囲を計算
-        let spanLat = (maxLat - minLat) * 1.2 // 少し余裕を持たせる
-        let spanLon = (maxLon - minLon) * 1.2
-        
-        let region = MKCoordinateRegion(center: center, span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon))
-        mapView.setRegion(region, animated: true)
+        // 現在表示中の地図領域を取得
+            let visibleMapRect = mapView.visibleMapRect
+            
+            // アイテムとイベントをフィルタリングしてアノテーションを追加
+            let filteredItems = items.filter { item in
+                let coordinate = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
+                let point = MKMapPoint(coordinate)
+                return visibleMapRect.contains(point)
+            }
+            
+            let filteredEvents = events.filter { event in
+                let coordinate = CLLocationCoordinate2D(latitude: event.coordinate.latitude, longitude: event.coordinate.longitude)
+                let point = MKMapPoint(coordinate)
+                return visibleMapRect.contains(point)
+            }
+            
+            // マップ上のアノテーションを更新
+            mapView.removeAnnotations(mapView.annotations)
+            addAnnotationsToMap(to: filteredItems) { item in
+                return ItemAnnotation(item: item)
+            }
+            addAnnotationsToMap(to: filteredEvents) { event in
+                return EventAnnotation(event: event)
+            }
     }
 
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        // 入力されたテキストに基づいて検索結果を更新
-        filterItems(searchText: searchText)
+        if searchText.isEmpty {
+            addAnnotationsToMap(to: items){ item in
+                return ItemAnnotation(item: item)
+            }
+            addAnnotationsToMap(to: events){ event in
+                return EventAnnotation(event: event)
+            }
+            return
+        } else {
+            searchLocation(searchText)
+        }
+    }
+    
+    func searchLocation(_ query: String) {
+        // まずジオコーディングを試みる
+        let geocoder = CLGeocoder()
+        geocoder.geocodeAddressString(query) { [weak self] (placemarks, error) in
+            if let error = error {
+                print("住所検索エラー: \(error.localizedDescription)")
+                return
+            }
+            
+            guard let placemark = placemarks?.first, let location = placemark.location else {
+                return
+            }
+            // 地図の表示領域を変更
+            let coordinate = location.coordinate
+            let region = MKCoordinateRegion(center: coordinate, span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05))
+            self?.mapView.setRegion(region, animated: true)
+            
+            // 全てのアノテーションを取得
+            var allAnnotations: [MKPointAnnotation] = []
+
+            // ItemAnnotationsとEventAnnotationsをまとめて処理
+            allAnnotations.append(contentsOf: (self?.items.map { ItemAnnotation(item: $0) })!)
+            allAnnotations.append(contentsOf: (self?.events.map { EventAnnotation(event: $0) })!)
+            
+            // 検索結果に基づくアノテーションの追加
+            let nearbyAnnotations = allAnnotations.filter { annotation in
+                let distance = CLLocation(latitude: annotation.coordinate.latitude, longitude: annotation.coordinate.longitude)
+                    .distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude))
+                return distance <= 10000 // 10km以内
+            }
+            self?.mapView.addAnnotations(nearbyAnnotations)
+        }
     }
     
     func checkLoginState() {
         let groupID = UserDefaults.standard.string(forKey: "groupID")
-        let userID = UserDefaults.standard.string(forKey: "userID")
+//        let userID = UserDefaults.standard.string(forKey: "userID")
         
-        if let groupID = groupID, let userID = userID {
+        if let groupID = groupID {
             // マップ画面に進む
             groupLoginButton.isHidden = true
             navigateToMap(groupID: groupID)
@@ -179,33 +243,11 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
         }
     }
     
-    func filterItems(searchText:String) {
-        if searchText.isEmpty {
-            for item in items {
-                let annotation = ItemAnnotation(item: item)
-                mapView.addAnnotation(annotation)
-            }
-            return
-        }
-        let matchedItems = items.filter { $0.name.contains(searchText) || $0.category.contains(searchText) }
-        if let firstItem = matchedItems.first {
-            let coordinate = CLLocationCoordinate2D(latitude: firstItem.location.latitude, longitude: firstItem.location.longitude)
-            mapView.setCenter(coordinate, animated: true)
-        } else {
-            print("該当するアイテムがありません")
-        }
-
-        // アノテーションを追加
-        mapView.removeAnnotations(mapView.annotations) // 既存アノテーションを削除
-        for item in matchedItems {
-            let annotation = ItemAnnotation(item: item)
-            mapView.addAnnotation(annotation)
-        }
-    }
-    
     // 位置情報が更新されたときに呼び出される
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let userLocation = locations.last else { return }
+        
+        currentLocation = userLocation.coordinate
         
         // 現在位置を地図に表示
         let region = MKCoordinateRegion(center: userLocation.coordinate,
@@ -221,10 +263,10 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     /// グループIDを指定してマップ上にアノテーションを載せて表示する
     /// - Parameter groupID: 指定するグループID
     func navigateToMap(groupID: String){
-        let filteredByGroupID = ItemManager().items(where: { $0.groupId == groupID })
-        for item in filteredByGroupID {
-            let annotation = ItemAnnotation(item: item)
-            mapView.addAnnotation(annotation)
+        let items = ItemPersistenceManager().load()
+        let filteredByGroupID = ItemSearchManager(items: items).items(where: { $0.groupId == groupID })
+        addAnnotationsToMap(to: filteredByGroupID){ item in
+            return ItemAnnotation(item: item)
         }
     }
     
@@ -233,15 +275,53 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     }
     
     func showCreationForm(at coordinate:CLLocationCoordinate2D){
-        // 新しいStoryboardをインスタンス化
-        let storyboard = UIStoryboard(name: "ShoppingItemRegistrationView", bundle: nil)
+        let shoppingItemView = ItemRegistrationView(coordinate: coordinate, onRegister: { [weak self] item, image in
+            self?.handleItemRegistration(item: item, image: image)
+        })
+        let hostingController = UIHostingController(rootView: shoppingItemView)
+        self.navigationController?.pushViewController(hostingController, animated: true)
+    }
+    
+    // 登録されたアイテムを処理するメソッド
+    private func handleItemRegistration(item: Item, image: UIImage) {
+        let itemPersistenceManager = ItemPersistenceManager()
+        var items = itemPersistenceManager.load()
+        items.append(item)
+        itemPersistenceManager.save(items: items)
+        //戻る
+        self.navigationController?.popViewController(animated: true)
         
-        // Storyboard IDを使ってViewControllerをインスタンス化
-        if let viewController = storyboard.instantiateViewController(withIdentifier: "ShoppingItemRegistrationViewController") as? ShoppingItemRegistrationViewController {
-            viewController.coordinate = coordinate
-            self.navigationController?.pushViewController(viewController, animated: true)
+        // 一時的なアノテーションを削除
+        removeAnnotations(ofType: TemporaryAnnotation.self)
+        print("登録されたアイテム: \(item)")
+    }
+    // 登録されたイベントを処理するメソッド
+    private func handleEventRegistration(event: Event, image: UIImage) {
+        let eventPersistenceManager = EventPersistenceManager()
+        var events = eventPersistenceManager.load()
+        events.append(event)
+        eventPersistenceManager.save(events: events)
+        //戻る
+        self.navigationController?.popViewController(animated: true)
+        
+        // 一時的なアノテーションを削除
+        removeAnnotations(ofType: TemporaryAnnotation.self)
+        print("登録されたイベント: \(event)")
+    }
+
+    func addAnnotationsToMap<T: Annotatable, A: MKAnnotation>(to items: [T], createAnnotation: (T) -> A) {
+        removeAnnotations(ofType: A.self)
+        for item in items {
+            let annotation = createAnnotation(item)
+            mapView.addAnnotation(annotation)
         }
     }
+
+    func removeAnnotations<AnnotationType: MKAnnotation>(ofType annotationType: AnnotationType.Type) {
+        let annotationsToRemove = mapView.annotations.compactMap { $0 as? AnnotationType }
+        mapView.removeAnnotations(annotationsToRemove)
+    }
+    
     func showRegistrationButton() {
         // 新しいStoryboardをインスタンス化
         let storyboard = UIStoryboard(name: "GroupLoginView", bundle: nil)
@@ -252,86 +332,172 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
             self.navigationController?.pushViewController(viewController, animated: true)
         }
     }
-
-    @IBAction func toItemRegistrationView(_ sender: Any) {
-        // 新しいStoryboardをインスタンス化
-        let storyboard = UIStoryboard(name: "ShoppingItemRegistrationView", bundle: nil)
-        
-        // Storyboard IDを使ってViewControllerをインスタンス化
-        if let viewController = storyboard.instantiateViewController(withIdentifier: "ShoppingItemRegistrationViewController") as? ShoppingItemRegistrationViewController {
-            // ViewControllerを表示
-            self.navigationController?.pushViewController(viewController, animated: true)
+    
+    func selectRegistrationType(coordinate:CLLocationCoordinate2D){
+        let itemAction = UIAlertAction(title: "アイテム登録",
+                             style: .default) { (action) in
+            self.showRegistrationViewFromAnnotation(isItem: true, coordinate: coordinate)
+        }
+        let eventAction = UIAlertAction(title: "イベント登録",
+                             style: .default) { (action) in
+            self.showRegistrationViewFromAnnotation(isItem: false, coordinate: coordinate)
+        }
+        let cancelAction = UIAlertAction(title: "キャンセル",
+                             style: .cancel) { (action) in
+            self.removeAnnotations(ofType: TemporaryAnnotation.self)
+        }
+        //        アクションシートで選択する
+        let alert = UIAlertController(title: "新規作成",
+                message: "この位置に情報を登録しますか？",
+                preferredStyle: .alert)
+        alert.addAction(itemAction)
+        alert.addAction(eventAction)
+        alert.addAction(cancelAction)
+               
+        self.present(alert, animated: true)
+    }
+    
+    func showRegistrationViewFromAnnotation(isItem:Bool, coordinate:CLLocationCoordinate2D) {
+        if isItem {
+            let shoppingItemView = ItemRegistrationView(coordinate: coordinate, onRegister: { [weak self] item, image in
+                self?.handleItemRegistration(item: item, image: image)
+            })
+            let hostingController = UIHostingController(rootView: shoppingItemView)
+            navigationController?.pushViewController(hostingController, animated: true)
+        } else {
+            let shoppingItemView = EventRegistrationView(coordinate: coordinate, onRegister: { [weak self] event, image in
+                self?.handleEventRegistration(event: event, image: image!)
+            })
+            let hostingController = UIHostingController(rootView: shoppingItemView)
+            navigationController?.pushViewController(hostingController, animated: true)
         }
     }
 }
-// MARK: アノテーション関連の処理
+// MARK: マップ挙動・アノテーション関連の処理
 extension HomeViewController :MKMapViewDelegate {
+    
+    func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+        // 新しい範囲に基づいてアノテーションを再表示
+        let visibleRegion = mapView.visibleMapRect
+        // 全てのアノテーションを取得
+        var allAnnotations: [MKPointAnnotation] = []
+
+        // ItemAnnotationsとEventAnnotationsをまとめて処理
+        allAnnotations.append(contentsOf: items.map { ItemAnnotation(item: $0) })
+        allAnnotations.append(contentsOf: events.map { EventAnnotation(event: $0) })
+        
+        let visibleAnnotations = allAnnotations.filter { annotation in
+            return visibleRegion.contains(MKMapPoint(annotation.coordinate))
+        }
+        mapView.removeAnnotations(mapView.annotations)
+        mapView.addAnnotations(visibleAnnotations)
+    }
+
+    
+    /// マップスクロール時に現在地の自動追尾を停止する
+    /// - Parameters:
+    ///   - mapView: 表示しているmapView
+    ///   - animated: animated description
+    func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
+        mapView.setUserTrackingMode(.none, animated: false)
+    }
+    
     @objc func handleLongPress(_ gestureRecognizer: UILongPressGestureRecognizer) {
-        guard gestureRecognizer.state == .began else { return } // 長押しの開始時のみ処理
-
-        let touchPoint = gestureRecognizer.location(in: mapView) // マップビュー内のタップ位置を取得
-        let coordinate = mapView.convert(touchPoint, toCoordinateFrom: mapView) // 緯度経度に変換
-
+        guard gestureRecognizer.state == .began else { return }
+        let location = gestureRecognizer.location(in: mapView)
+        let coordinate = mapView.convert(location, toCoordinateFrom: mapView)
         // 一時的なアノテーションを追加
-        let annotation = MKPointAnnotation()
+        let annotation = TemporaryAnnotation()
         annotation.coordinate = coordinate
         annotation.title = "新規作成ポイント"
         mapView.addAnnotation(annotation)
 
         // ダイアログを表示
-        let alert = UIAlertController(title: "新規作成", message: "この場所で新規作成しますか？", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "作成", style: .default, handler: { _ in
-            // 作成フォームを表示する処理
-            self.showCreationForm(at: coordinate)
-        }))
-        alert.addAction(UIAlertAction(title: "キャンセル", style: .cancel, handler: { _ in
-            // キャンセル時にアノテーションを削除
-            self.mapView.removeAnnotation(annotation)
-        }))
-        present(alert, animated: true)
+        selectRegistrationType(coordinate:coordinate)
     }
 
     // 吹き出しのアクセサリ（詳細ボタンなど）をタップしたとき
     func mapView(_ mapView: MKMapView, annotationView view: MKAnnotationView, calloutAccessoryControlTapped control: UIControl) {
-        guard let itemAnnotation = view.annotation as? ItemAnnotation else { return }
-        // ItemDetailViewControllerを表示
-        showItemDetail(for: itemAnnotation)
+        // ItemAnnotation の場合
+        if let itemAnnotation = view.annotation as? ItemAnnotation {
+            showItemDetail(for: itemAnnotation)
+        }
+        // EventAnnotation の場合
+        else if let eventAnnotation = view.annotation as? EventAnnotation {
+            showEventDetail(for: eventAnnotation)
+        }
     }
-    
+
     private func showItemDetail(for annotation: ItemAnnotation) {
-        // 新しいStoryboardをインスタンス化
-        let storyboard = UIStoryboard(name: "ItemDetailView", bundle: nil)
+        // SwiftUIのビューを作成
+        let itemDetailView = ItemDetailView(isPresented: .constant(true), item: annotation.item)
+        let hostingController = UIHostingController(rootView: itemDetailView)
         
-        // Storyboard IDを使ってViewControllerをインスタンス化
-        if let viewController = storyboard.instantiateViewController(withIdentifier: "HalfItemDetailViewController") as? HalfItemDetailViewController, let sheet = viewController.sheetPresentationController {
-            // アノテーションに基づいてデータを渡す
-            viewController.item = annotation.item
-            sheet.detents = [.medium()] // 親ビューの高さに応じたモーダルの高さを設定
-            sheet.prefersGrabberVisible = true // 上部のドラッグ用のハンドルを表示
-            present(viewController, animated: true, completion: nil)
+        // モーダルのスタイル設定
+        hostingController.modalPresentationStyle = .pageSheet
+        hostingController.modalTransitionStyle = .coverVertical
+        
+        // sheetPresentationControllerでハーフモーダル設定
+        if let sheet = hostingController.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
         }
+        
+        present(hostingController, animated: true, completion: nil)
     }
     
-    // アノテーションビューのカスタマイズ
-    func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
-        if annotation is ItemAnnotation {
-            let identifier = "ItemAnnotationView"
-            var view: MKMarkerAnnotationView
-            if let dequeuedView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView {
-                view = dequeuedView
-            } else {
-                view = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
-                view.canShowCallout = true
-                
-                // 吹き出しにアイテム詳細を表示するカスタムビューを設定
-                let detailButton = UIButton(type: .detailDisclosure)
-                view.rightCalloutAccessoryView = detailButton
-            }
-            
-            view.annotation = annotation
-            return view
+    private func showEventDetail(for annotation: EventAnnotation) {
+        // SwiftUIのビューを作成
+        let eventDetailView = EventDetailView(isPresented: .constant(true), event: annotation.event)
+        let hostingController = UIHostingController(rootView: eventDetailView)
+        
+        // モーダルのスタイル設定
+        hostingController.modalPresentationStyle = .pageSheet
+        hostingController.modalTransitionStyle = .coverVertical
+        
+        // sheetPresentationControllerでハーフモーダル設定
+        if let sheet = hostingController.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
         }
-        return nil
+        
+        present(hostingController, animated: true, completion: nil)
+    }
+    
+    func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+        guard (annotation is ItemAnnotation || annotation is EventAnnotation) else { return nil }
+
+        let reuseIdentifier = "CustomAnnotationView"
+        var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: reuseIdentifier) as? MKMarkerAnnotationView
+
+        if annotationView == nil {
+            annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: reuseIdentifier)
+            annotationView?.canShowCallout = true // 吹き出しを有効化
+        } else {
+            annotationView?.annotation = annotation
+        }
+
+        let imageView = UIImageView(frame: CGRect(x: 0, y: 0, width: 50, height: 50)) // サイズ調整
+        // 吹き出し左側に画像を表示
+        if let itemAnnotation = annotation as? ItemAnnotation {
+            imageView.image = itemAnnotation.item.imageData.flatMap { UIImage(data: $0) } ?? UIImage(named: "placeholder")
+
+        }
+        if let eventAnnotation = annotation as? EventAnnotation {
+            imageView.image = eventAnnotation.event.imageData.flatMap { UIImage(data: $0) } ?? UIImage(named: "placeholder")
+        }
+        imageView.layer.cornerRadius = 10 // 角丸
+        imageView.layer.masksToBounds = true
+        annotationView?.leftCalloutAccessoryView = imageView
+        
+        let button = UIButton(type: .detailDisclosure)  // or any button type you prefer
+        button.setTitle("詳細表示", for: .normal)
+        button.frame = CGRect(x: 0, y: 0, width: 30, height: 30)
+        button.layer.cornerRadius = 10 // 角丸
+        button.layer.masksToBounds = true
+        annotationView?.rightCalloutAccessoryView = button
+
+        return annotationView
     }
 }
 // MARK: デバッグ用のデータ置き場
@@ -350,23 +516,5 @@ extension HomeViewController {
             let userID = HomeViewController.user.id.uuidString
             UserDefaults.standard.set(userID, forKey: "userID")
         }
-    }
-
-    
-    func currentLocation() -> MKCoordinateRegion {
-        // Set the location coordinates for 川西市山原
-        let latitude: CLLocationDegrees = 34.897987
-        let longitude: CLLocationDegrees = 135.398693
-
-        // Create a coordinate
-        let location = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-
-        // Set the span (zoom level)
-        let span = MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01) // Adjust values for zoom
-
-        // Create the region with the coordinate and span
-        let region = MKCoordinateRegion(center: location, span: span)
-        
-        return region
     }
 }

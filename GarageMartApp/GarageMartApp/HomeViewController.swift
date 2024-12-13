@@ -31,7 +31,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
         return stackView
     }()
     let locationManager = CLLocationManager()
-    var currentLocation: CLLocationCoordinate2D?
     var items:[Item] = []
     var events:[Event] = []
     private var isItemDetailPresented = false
@@ -333,12 +332,12 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let userLocation = locations.last else { return }
         
-        currentLocation = userLocation.coordinate
-        
-        // 現在位置を地図に表示
-        let region = MKCoordinateRegion(center: userLocation.coordinate,
-                                        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
-        mapView.setRegion(region, animated: true)
+//        currentLocation = userLocation.coordinate
+//        
+//        // 現在位置を地図に表示
+//        let region = MKCoordinateRegion(center: userLocation.coordinate,
+//                                        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
+//        mapView.setRegion(region, animated: true)
     }
     
     // 位置情報取得に失敗した場合

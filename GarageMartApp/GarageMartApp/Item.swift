@@ -30,7 +30,7 @@ enum StockCategory:String,Codable,Equatable, Hashable,CaseIterable {
 ///
 /// id,商品名、説明事項、価格、カテゴリ、画像URL、位置情報、在庫数、および売り手のIDを管理します。
 struct Item: Codable,Equatable,Hashable,Annotatable {
-    var id:UUID
+    var id:String = UUID().uuidString
     var name: String
     var description :String
     var price : Int
@@ -63,7 +63,7 @@ struct Item: Codable,Equatable,Hashable,Annotatable {
     }
     
     init(
-        id: UUID = UUID(),
+        id: String,
         name: String,
         description: String? = nil,
         price: Int,
@@ -75,8 +75,8 @@ struct Item: Codable,Equatable,Hashable,Annotatable {
         groupId: String = "myGroup",
         userId: String = "testUser",
         registeredDate: Date = Date(),
-        eventID: UUID? = nil,
-        image: UIImage? = nil
+        imageData:Data,
+        eventID: UUID? = nil
     ) {
         guard price >= 0 else {
             fatalError("Price cannot be negative")
@@ -98,16 +98,77 @@ struct Item: Codable,Equatable,Hashable,Annotatable {
         self.userId = userId
         self.registeredDate = registeredDate
         self.eventID = eventID
+        self.imageData = imageData
         self.coordinate = coordinate
-        self.imageData = image?.jpegData(compressionQuality: 0.8)
+    }
+    
+    func toDictionary(url: String) -> [String: Any] {
+        return [
+            "id": id,
+            "name": name,
+            "description": description,
+            "price": price,
+            "category": category.rawValue, // インスタンスに基づく変換
+            "imageUrl": url,
+            "coordinate": [
+                "latitude": coordinate.latitude,
+                "longitude": coordinate.longitude
+            ],
+            "stock": stock,
+            "stockCategory": stockCategory.rawValue, // インスタンスに基づく変換
+            "groupId": groupId,
+            "userId": userId,
+            "registeredDate": ISO8601DateFormatter().string(from: registeredDate), // DateをISO8601形式で変換
+            "eventID": eventID?.uuidString ?? "" // UUIDを文字列として保存
+        ]
     }
 
     
     static func == (lhs: Item, rhs: Item) -> Bool {
         lhs.id == rhs.id
     }
-    func getImage() -> UIImage? {
-        guard let imageData = imageData else { return nil }
-        return UIImage(data: imageData)
+}
+extension Item {
+    init?(from dictionary: [String: Any]) {
+        // 必須プロパティの変換と検証
+        guard let id = dictionary["id"] as? String,
+              let name = dictionary["name"] as? String,
+              let description = dictionary["description"] as? String,
+              let price = dictionary["price"] as? Int,
+              let categoryRawValue = dictionary["category"] as? String,
+              let category = ItemCategory(rawValue: categoryRawValue),
+              let imageUrl = dictionary["imageUrl"] as? String,
+              let coordinateDict = dictionary["coordinate"] as? [String: Any],
+              let coordinate = Coordinate(from: coordinateDict),
+              let stock = dictionary["stock"] as? Int,
+              let stockCategoryRawValue = dictionary["stockCategory"] as? String,
+              let stockCategory = StockCategory(rawValue: stockCategoryRawValue),
+              let groupId = dictionary["groupId"] as? String,
+              let userId = dictionary["userId"] as? String,
+              let registeredDateString = dictionary["registeredDate"] as? String,
+              let registeredDate = ISO8601DateFormatter().date(from: registeredDateString) else {
+            return nil // 必須プロパティのどれかが変換に失敗した場合
+        }
+
+        // オプションプロパティの変換
+        let imageData = dictionary["imageData"] as? Data
+        let eventIDString = dictionary["eventID"] as? String
+        let eventID = eventIDString != nil ? UUID(uuidString: eventIDString!) : nil
+
+        // プロパティの設定
+        self.id = id
+        self.name = name
+        self.description = description
+        self.price = price
+        self.category = category
+        self.imageUrl = imageUrl
+        self.coordinate = coordinate
+        self.stock = stock
+        self.stockCategory = stockCategory
+        self.groupId = groupId
+        self.userId = userId
+        self.imageData = imageData
+        self.registeredDate = registeredDate
+        self.eventID = eventID
     }
 }

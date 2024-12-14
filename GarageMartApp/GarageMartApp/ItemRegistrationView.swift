@@ -18,7 +18,7 @@ struct ItemRegistrationView: View {
     @State private var itemQuantity: String = ""
     @State private var selectedStock: StockCategory = .only
     @State private var selectedCategory: ItemCategory = .food
-    let onRegister: (Item,UIImage) -> Void
+    let onRegister: (Item) -> Void
     var body: some View {
         ScrollView {
             ZStack{
@@ -67,10 +67,11 @@ struct ItemRegistrationView: View {
                     
                     Button(action: {
                         // 登録処理
-                        guard let intPrice = Int(itemPrice), let intQuantity = Int(itemQuantity) else { return }
-                        let inputItem = Item(id: UUID(), name: itemName, description: itemDescription, price: intPrice, category:selectedCategory, imageUrl: "", coordinate: Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude), stock: intQuantity, stockCategory:selectedStock ,image: selectedImage)
                         guard let selectedImage = selectedImage else { return }
-                        onRegister(inputItem,selectedImage)
+                        guard let intPrice = Int(itemPrice), let intQuantity = Int(itemQuantity),let resizedImage = resizeImageToHeight(image: selectedImage, targetHeight: 1024) ,let imageData = resizedImage.jpegData(compressionQuality: 0.7) else { return }
+                        let inputItem = Item(id: UUID().uuidString, name: itemName, description: itemDescription, price: intPrice, category:selectedCategory, coordinate: Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude), stock: intQuantity, stockCategory:selectedStock ,imageData:imageData)
+                        
+                        onRegister(inputItem)
                     }) {
                         Text("アイテムを登録する")
                             .frame(maxWidth: .infinity)
@@ -96,8 +97,18 @@ struct ItemRegistrationView: View {
     private func isFormValid() -> Bool {
         return !itemName.isEmpty && !itemDescription.isEmpty && !itemPrice.isEmpty &&  !itemQuantity.isEmpty && selectedImage != nil
     }
-    private func selectImage() {
-        // 画像選択のロジック（後述）
+    private func resizeImageToHeight(image: UIImage, targetHeight: CGFloat) -> UIImage? {
+        let originalSize = image.size
+        let scaleFactor = targetHeight / originalSize.height
+        let targetWidth = originalSize.width * scaleFactor
+        let targetSize = CGSize(width: targetWidth, height: targetHeight)
+        
+        UIGraphicsBeginImageContextWithOptions(targetSize, false, 1.0)
+        image.draw(in: CGRect(origin: .zero, size: targetSize))
+        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return resizedImage
     }
 }
 
@@ -151,7 +162,7 @@ struct SegmentCategoryPickerView: View {
 #Preview {
     ItemRegistrationView(
         coordinate: CLLocationCoordinate2D(latitude: 0.0, longitude: 0.0),
-        onRegister: { item, image in
+        onRegister: { item in
             print("Preview Registration:")
             print("Item name: \(item.name), Category: \(item.category)")
         }

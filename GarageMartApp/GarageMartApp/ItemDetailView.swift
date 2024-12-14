@@ -18,12 +18,8 @@ struct ItemDetailView: View {
             VStack(alignment: .leading) {
                 Spacer()
                 // 画像
-                Image(uiImage: UIImage(data: item.imageData!) ?? UIImage(named: "ventilation_color")!)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 200)
-                    .clipped()
-                
+                ItemImageView(item: item)
+        
                 // 名前
                 Text(item.name)
                     .font(.largeTitle)
@@ -55,9 +51,46 @@ struct ItemDetailView: View {
     }
 }
 
+struct ItemImageView: View {
+    var item: Item!
+    @State private var uiImage: UIImage? = nil // For storing the fetched image
+    var body: some View {
+        if let uiImage = uiImage {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(height: 200)
+                .clipped()
+        } else {
+            Image("ventilation_color") // Placeholder
+                .resizable()
+                .scaledToFill()
+                .frame(height: 200)
+                .clipped()
+                .onAppear {
+                    fetchImage()
+                }
+        }
+    }
+    
+    private func fetchImage() {
+        ItemPersistenceManager().fetchImage(from: item) { result in
+            switch result {
+            case .success(let image):
+                DispatchQueue.main.async {
+                    self.uiImage = image
+                }
+            case .failure(let error):
+                print("Error fetching image: \(error)")
+            }
+        }
+    }
+}
+
+
 #Preview {
     @Previewable @State var isPresented = false
-    let item = Item(id: UUID(), name: "test", description: "testtest", price: 100, category:.dailyGoods, imageUrl: "", coordinate: Coordinate(latitude: 0, longitude: 0), stock: 1, stockCategory:.many, image:UIImage(named: "ventilation_color")!) // 仮のItemを作成
+    let item = Item(id: "12345", name: "テスト", price: 1000, category: ItemCategory.toy, coordinate: Coordinate(latitude: 0, longitude: 0), stock: 1, stockCategory: StockCategory.few,imageData:UIImage(named: "ventilation_color")!.pngData()!) // 仮のItemを作成
 
     ItemDetailView(isPresented: $isPresented, item: item)
 }

@@ -10,6 +10,7 @@ import MapKit
 import CoreLocation
 import SwiftUI
 
+
 class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManagerDelegate, UIActionSheetDelegate {
     @IBOutlet weak var mapView: MKMapView!
     let searchBar = UISearchBar()
@@ -42,18 +43,26 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
 //        UserDefaults.standard.removeObject(forKey:  "items")
 //        UserDefaults.standard.removeObject(forKey:  "events")
         
-        items = ItemPersistenceManager().load()
-        events = EventPersistenceManager().load()
-        addAnnotationsToMap(to: items){ item in
-            return ItemAnnotation(item: item)
+        ItemPersistenceManager().loadItems { items in
+            self.addAnnotationsToMap(to: items){ item in
+                return ItemAnnotation(item: item)
+            }
         }
-        addAnnotationsToMap(to: events){ event in
-            return EventAnnotation(event: event)
-        }
+        EventPersistenceManager().loadEvents(completion: { events in
+            self.addAnnotationsToMap(to: events){ event in
+                return EventAnnotation(event: event)
+            }
+            
+        })
+        
     }
     override func viewDidLoad() {
         super.viewDidLoad()
-
+//        let item = Item(id: UUID().uuidString, name: "テスト", price: 1000, category: ItemCategory.toy, coordinate: Coordinate(latitude: 0, longitude: 0), stock: 1, stockCategory: StockCategory.few)
+//        let itemPersistenceManager = ItemPersistenceManager()
+//        itemPersistenceManager.save(item: item)
+        
+        
         searchBar.delegate = self
         searchBar.placeholder = "住所検索"
         navigationItem.titleView = searchBar
@@ -180,6 +189,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     }
 
     
+    
     func focusOnCategory(category: ItemCategory) {
         // 現在表示中の地図領域を取得
         let visibleMapRect = mapView.visibleMapRect
@@ -202,7 +212,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
             return visibleMapRect.contains(point)
         }
         // マップ上のアノテーションを更新
-        mapView.removeAnnotations(mapView.annotations)
         addAnnotationsToMap(to: filteredItems) { item in
             return ItemAnnotation(item: item)
         }
@@ -229,7 +238,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
             return visibleMapRect.contains(point)
         }
         // マップ上のアノテーションを更新
-        mapView.removeAnnotations(mapView.annotations)
         addAnnotationsToMap(to: filteredItems) { item in
             return ItemAnnotation(item: item)
         }
@@ -238,33 +246,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
         }
     }
     
-    
-    @objc func allCategoriesButtonTapped() {
-        // 現在表示中の地図領域を取得
-            let visibleMapRect = mapView.visibleMapRect
-            
-            // アイテムとイベントをフィルタリングしてアノテーションを追加
-            let filteredItems = items.filter { item in
-                let coordinate = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
-                let point = MKMapPoint(coordinate)
-                return visibleMapRect.contains(point)
-            }
-            
-            let filteredEvents = events.filter { event in
-                let coordinate = CLLocationCoordinate2D(latitude: event.coordinate.latitude, longitude: event.coordinate.longitude)
-                let point = MKMapPoint(coordinate)
-                return visibleMapRect.contains(point)
-            }
-            
-            // マップ上のアノテーションを更新
-            mapView.removeAnnotations(mapView.annotations)
-            addAnnotationsToMap(to: filteredItems) { item in
-                return ItemAnnotation(item: item)
-            }
-            addAnnotationsToMap(to: filteredEvents) { event in
-                return EventAnnotation(event: event)
-            }
-    }
 
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         if searchText.isEmpty {
@@ -332,12 +313,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let userLocation = locations.last else { return }
         
-//        currentLocation = userLocation.coordinate
-//        
-//        // 現在位置を地図に表示
-//        let region = MKCoordinateRegion(center: userLocation.coordinate,
-//                                        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
-//        mapView.setRegion(region, animated: true)
+        
     }
     
     // 位置情報取得に失敗した場合
@@ -348,10 +324,11 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     /// グループIDを指定してマップ上にアノテーションを載せて表示する
     /// - Parameter groupID: 指定するグループID
     func navigateToMap(groupID: String){
-        let items = ItemPersistenceManager().load()
-        let filteredByGroupID = ItemSearchManager(items: items).items(where: { $0.groupId == groupID })
-        addAnnotationsToMap(to: filteredByGroupID){ item in
-            return ItemAnnotation(item: item)
+        ItemPersistenceManager().loadItems { items in
+            let filteredByGroupID = ItemSearchManager(items: items).items(where: { $0.groupId == groupID })
+            self.addAnnotationsToMap(to: filteredByGroupID){ item in
+                return ItemAnnotation(item: item)
+            }
         }
     }
     
@@ -360,38 +337,39 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     }
     
     func showCreationForm(at coordinate:CLLocationCoordinate2D){
-        let shoppingItemView = ItemRegistrationView(coordinate: coordinate, onRegister: { [weak self] item, image in
-            self?.handleItemRegistration(item: item, image: image)
+        let shoppingItemView = ItemRegistrationView(coordinate: coordinate, onRegister: { [weak self] item in
+            self?.handleItemRegistration(item: item)
         })
         let hostingController = UIHostingController(rootView: shoppingItemView)
         self.navigationController?.pushViewController(hostingController, animated: true)
     }
     
     // 登録されたアイテムを処理するメソッド
-    private func handleItemRegistration(item: Item, image: UIImage) {
-        let itemPersistenceManager = ItemPersistenceManager()
-        var items = itemPersistenceManager.load()
-        items.append(item)
-        itemPersistenceManager.save(items: items)
+    private func handleItemRegistration(item: Item) {
+        ItemPersistenceManager().save(item: item)
         //戻る
         self.navigationController?.popViewController(animated: true)
         
         // 一時的なアノテーションを削除
-        removeAnnotations(ofType: TemporaryAnnotation.self)
-        print("登録されたアイテム: \(item)")
+        self.removeAnnotations(ofType: TemporaryAnnotation.self)
+        
+        ItemPersistenceManager().loadItems(completion: { items in
+            self.items = items
+        })
     }
     // 登録されたイベントを処理するメソッド
     private func handleEventRegistration(event: Event, image: UIImage) {
         let eventPersistenceManager = EventPersistenceManager()
-        var events = eventPersistenceManager.load()
-        events.append(event)
-        eventPersistenceManager.save(events: events)
-        //戻る
-        self.navigationController?.popViewController(animated: true)
-        
-        // 一時的なアノテーションを削除
-        removeAnnotations(ofType: TemporaryAnnotation.self)
-        print("登録されたイベント: \(event)")
+        EventPersistenceManager().loadEvents(completion: { events in
+            self.events.append(event)
+            EventPersistenceManager().save(event: event)
+            //戻る
+            self.navigationController?.popViewController(animated: true)
+            
+            // 一時的なアノテーションを削除
+            self.removeAnnotations(ofType: TemporaryAnnotation.self)
+            print("登録されたイベント: \(event)")
+        })
     }
 
     func addAnnotationsToMap<T: Annotatable, A: MKAnnotation>(to items: [T], createAnnotation: (T) -> A) {
@@ -444,10 +422,10 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     
     func showRegistrationViewFromAnnotation(isItem:Bool, coordinate:CLLocationCoordinate2D) {
         if isItem {
-            let shoppingItemView = ItemRegistrationView(coordinate: coordinate, onRegister: { [weak self] item, image in
-                self?.handleItemRegistration(item: item, image: image)
+            let itemRegistrationView = ItemRegistrationView(coordinate: coordinate, onRegister: { [weak self] item in
+                self?.handleItemRegistration(item: item)
             })
-            let hostingController = UIHostingController(rootView: shoppingItemView)
+            let hostingController = UIHostingController(rootView: itemRegistrationView)
             navigationController?.pushViewController(hostingController, animated: true)
         } else {
             let shoppingItemView = EventRegistrationView(coordinate: coordinate, onRegister: { [weak self] event, image in
@@ -565,8 +543,21 @@ extension HomeViewController :MKMapViewDelegate {
         let imageView = UIImageView(frame: CGRect(x: 0, y: 0, width: 50, height: 50)) // サイズ調整
         // 吹き出し左側に画像を表示
         if let itemAnnotation = annotation as? ItemAnnotation {
-            imageView.image = itemAnnotation.item.imageData.flatMap { UIImage(data: $0) } ?? UIImage(named: "placeholder")
-
+            if !itemAnnotation.item.imageUrl.isEmpty{
+                ItemPersistenceManager().fetchImage(from: itemAnnotation.item){ result in
+                    DispatchQueue.main.async { // UI更新はメインスレッドで行う
+                        switch result {
+                        case .success(let image):
+                            imageView.image = image
+                        case .failure(let error):
+                            print("Error fetching image: \(error.localizedDescription)")
+                            imageView.image = UIImage(named: "placeholder")
+                        }
+                    }
+                }
+            }else{
+                imageView.image = UIImage(named: "placeholder")
+            }
         }
         if let eventAnnotation = annotation as? EventAnnotation {
             imageView.image = eventAnnotation.event.imageData.flatMap { UIImage(data: $0) } ?? UIImage(named: "placeholder")

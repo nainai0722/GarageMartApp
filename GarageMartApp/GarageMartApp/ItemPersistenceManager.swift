@@ -6,18 +6,124 @@
 //
 
 import Foundation
+import FirebaseDatabase
+import FirebaseStorage
+import UIKit
 
 /// アイテムを扱うマネージャー構造体
 class ItemPersistenceManager {
     private let storageKey = "items"
     
     // 保存
-    func save(items: [Item]) {
+    func save(item: Item) {
         do {
-            let data = try JSONEncoder().encode(items)
-            UserDefaults.standard.set(data, forKey: storageKey)
+            let databaseRef = Database.database().reference()
+            let storageKey = "items"
+
+            guard let imageData = item.imageData else {
+                print("Error: No image data found.")
+                return
+            }
+
+            // 1. 画像データをアップロード
+            uploadImage(imageData) { result in
+                switch result {
+                case .success(let url):
+                    // 2. URLを取得してitem.imageUrlに設定
+                    let itemData = item.toDictionary(url: url)
+                    
+                    // 3. Firebase Realtime Databaseに保存
+                    databaseRef.child(storageKey).childByAutoId().setValue(itemData) { error, ref in
+                        if let error = error {
+                            print("Error saving item: \(error.localizedDescription)")
+                        } else {
+                            print("Item saved successfully!")
+                        }
+                    }
+                    
+                case .failure(let error):
+                    print("Error uploading image: \(error.localizedDescription)")
+                }
+            }
         } catch {
             print("Failed to save items: \(error)")
+        }
+    }
+    
+    func uploadImage(_ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
+        let storage = Storage.storage()
+        let storageRef = storage.reference().child("images/\(UUID().uuidString).jpg")
+        
+        storageRef.putData(imageData, metadata: nil) { _, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            storageRef.downloadURL { url, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                if let downloadURL = url?.absoluteString {
+                    completion(.success(downloadURL))
+                }
+            }
+        }
+    }
+    
+    enum UserDefaultsError:Error{
+        case notFoundDataById
+        case failedImageFromData
+    }
+
+
+    func fetchImage(from item:Item, completion: @escaping (Result<UIImage, Error>) -> Void) {
+        // idをキーにして紐づいているローカルデータがあれば取得して返す
+        if UserDefaults.standard.data(forKey: item.id) != nil {
+            guard let data = UserDefaults.standard.data(forKey: item.id) else {
+                completion(.failure(UserDefaultsError.notFoundDataById))
+                return
+            }
+            guard let image = UIImage(data: data) else {
+                completion(.failure(UserDefaultsError.failedImageFromData))
+                return
+            }
+            completion(.success(image))
+            return
+        }
+        let storageRef = Storage.storage().reference(forURL: item.imageUrl)
+        
+        storageRef.getData(maxSize: 1 * 1024 * 1024) { data, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            if let data = data, let image = UIImage(data: data) {
+                UserDefaults.standard.set(data, forKey: item.id)
+                completion(.success(image))
+            }
+        }
+    }
+
+    // 読み込み
+    func loadItems(completion: @escaping ([Item]) -> Void) {
+        let databaseRef = Database.database().reference()
+        databaseRef.child(storageKey).observeSingleEvent(of: .value) { snapshot in
+            var items: [Item] = []
+
+            guard let value = snapshot.value as? [String: [String: Any]] else {
+                completion([])
+                return
+            }
+
+            for (_, data) in value {
+                if let item = Item(from: data) {
+                    items.append(item)
+                }
+            }
+
+            completion(items)
         }
     }
     
@@ -36,6 +142,8 @@ class ItemPersistenceManager {
     func delete(item: Item) {
         var items = load()
         items.removeAll { $0.id == item.id }
-        save(items: items)
+        for item in items {
+            save(item: item)
+        }
     }
 }

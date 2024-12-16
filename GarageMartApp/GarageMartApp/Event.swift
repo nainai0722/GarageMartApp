@@ -15,6 +15,7 @@ struct Event:Codable,Annotatable {
     var endDate: Date // イベントの終了日
     var coordinate: Coordinate
     var imageData: Data?
+    var imageUrl: String?
     var createdAt: Date = Date() // 登録日時
     
     // 初期化メソッド
@@ -27,7 +28,7 @@ struct Event:Codable,Annotatable {
         self.imageData = image
     }
     
-    func toDictionary() -> [String: Any] {
+    func toDictionary(url: String) -> [String: Any] {
         return [
             "id": id,
             "title": title,
@@ -38,7 +39,7 @@ struct Event:Codable,Annotatable {
                 "latitude": coordinate.latitude,
                 "longitude": coordinate.longitude
             ],
-            "imageData": imageData?.base64EncodedString() ?? "", // DataをBase64文字列に変換
+            "imageUrl": url,
             "createdAt": ISO8601DateFormatter().string(from: createdAt) // 登録日時
         ]
     }
@@ -71,7 +72,7 @@ struct Event:Codable,Annotatable {
         self.coordinate = Coordinate(latitude: latitude, longitude: longitude)
         self.startDate = startDate
         self.endDate = endDate
-        self.imageData = (dictionary["imageData"] as? String)?.data(using: .utf8)?.base64EncodedData()
+        self.imageData = imageData
         self.createdAt = createdAt
     }
 

@@ -7,25 +7,72 @@
 
 import Foundation
 import FirebaseDatabase
+import FirebaseStorage
+import UIKit
 
 /// イベントを扱うマネージャー構造体
 class EventPersistenceManager {
     private let storageKey = "events"
     
     // 保存
-    func save(event: Event) {
+    func save(event: Event,completion: @escaping (Result<Event, Error>) -> Void) {
         do {
             let databaseRef = Database.database().reference()
-            let eventData = event.toDictionary() //
-               databaseRef.child(storageKey).childByAutoId().setValue(eventData) { error, ref in
-                   if let error = error {
-                       print("Error saving event: \(error.localizedDescription)")
-                   } else {
-                       print("Event saved successfully!")
-                   }
-               }
+            
+            guard let imageData = event.imageData else {
+                print("Error: No image data found.")
+                completion(.failure(ImageError.notFoundImageData))
+                return
+            }
+            
+            uploadImage(imageData) { result in
+                switch result {
+                    case .success(let url):
+                    // 2. URLを取得してitem.imageUrlに設定
+                    let eventData = event.toDictionary(url: url)
+                    
+                    // 3. Firebase Realtime Databaseに保存
+                    databaseRef.child(self.storageKey).childByAutoId().setValue(eventData) { error, ref in
+                        if let error = error {
+                            print("Error saving item: \(error.localizedDescription)")
+                            completion(.failure(error))
+                        } else {
+                            print("Item saved successfully!")
+                            // このitemだとImageUrlが格納されていない
+                            var savedEvent = event
+                            savedEvent.imageUrl = url
+                            completion(.success(savedEvent))
+                        }
+                    }
+                    case .failure(let error):
+                    print("Error uploading image: \(error.localizedDescription)")
+                    completion(.failure(error))
+                }
+            }
         } catch {
             print("Failed to save events: \(error)")
+        }
+    }
+    
+    func uploadImage(_ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
+        let storage = Storage.storage()
+        let storageRef = storage.reference().child("images/\(UUID().uuidString).jpg")
+        
+        storageRef.putData(imageData, metadata: nil) { _, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            storageRef.downloadURL { url, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                if let downloadURL = url?.absoluteString {
+                    completion(.success(downloadURL))
+                }
+            }
         }
     }
     
@@ -65,7 +112,14 @@ class EventPersistenceManager {
         var events = load()
         events.removeAll { $0.id == event.id }
         for event in events {
-            save(event: event)
+            save(event: event){ result in
+                if case .success = result {
+                    return
+                }
+                if case .failure(let error) = result {
+                    print("Failed to delete item: \(error)")
+                }
+            }
         }
     }
 }

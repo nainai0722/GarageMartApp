@@ -30,6 +30,12 @@ struct ItemDetailView: View {
                 Text(item.description)
                     .font(.body)
                     .padding([.horizontal, .bottom])
+                Text(item.category.rawValue)
+                    .font(.title)
+                Text(item.stockCategory.rawValue)
+                    .font(.title)
+                Text(String(item.price))
+                    .font(.title)
             }
             .background(GeometryReader { geometry in
                 Color.clear.onChange(of: geometry.frame(in: .global).minY) { value in

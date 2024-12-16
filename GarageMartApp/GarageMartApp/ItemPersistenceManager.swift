@@ -10,18 +10,23 @@ import FirebaseDatabase
 import FirebaseStorage
 import UIKit
 
+enum ImageError:Error {
+    case notFoundImageData
+}
+
 /// アイテムを扱うマネージャー構造体
 class ItemPersistenceManager {
     private let storageKey = "items"
     
     // 保存
-    func save(item: Item) {
+    func save(item: Item,completion: @escaping (Result<Item, Error>)  -> Void) {
         do {
             let databaseRef = Database.database().reference()
             let storageKey = "items"
 
             guard let imageData = item.imageData else {
                 print("Error: No image data found.")
+                completion(.failure(ImageError.notFoundImageData))
                 return
             }
 
@@ -36,17 +41,24 @@ class ItemPersistenceManager {
                     databaseRef.child(storageKey).childByAutoId().setValue(itemData) { error, ref in
                         if let error = error {
                             print("Error saving item: \(error.localizedDescription)")
+                            completion(.failure(error))
                         } else {
                             print("Item saved successfully!")
+                            // このitemだとImageUrlが格納されていない
+                            var savedItem = item
+                            savedItem.imageUrl = url
+                            completion(.success(savedItem))
                         }
                     }
                     
                 case .failure(let error):
                     print("Error uploading image: \(error.localizedDescription)")
+                    completion(.failure(error))
                 }
             }
         } catch {
             print("Failed to save items: \(error)")
+            completion(.failure(error))
         }
     }
     
@@ -143,7 +155,14 @@ class ItemPersistenceManager {
         var items = load()
         items.removeAll { $0.id == item.id }
         for item in items {
-            save(item: item)
+            save(item: item){ result in
+                if case .success = result {
+                    return
+                }
+                if case .failure(let error) = result {
+                    print("Failed to delete item: \(error)")
+                }
+            }
         }
     }
 }

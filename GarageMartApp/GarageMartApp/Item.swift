@@ -9,7 +9,7 @@ import Foundation
 import UIKit
 
 /// アイテムカテゴリー一覧
-enum ItemCategory:String,Codable,Equatable, Hashable,CaseIterable {
+enum ItemCategory:String,Codable,Equatable, Hashable,CaseIterable,Categorable {
     /// 食べ物カテゴリ
     case food = "食品"
     case toy = "おもちゃ"
@@ -18,7 +18,7 @@ enum ItemCategory:String,Codable,Equatable, Hashable,CaseIterable {
     case all = "すべて"
 }
 
-enum StockCategory:String,Codable,Equatable, Hashable,CaseIterable {
+enum StockCategory:String,Codable,Equatable, Hashable,CaseIterable,Categorable {
     case only = "一点限定"
     case few = "少しだけ"
     case many = "たくさんあります"

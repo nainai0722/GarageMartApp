@@ -18,7 +18,7 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <mapView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="BU6-Nk-7Ws">
-                                <rect key="frame" x="16" y="103" width="361" height="715"/>
+                                <rect key="frame" x="0.0" y="103" width="393" height="715"/>
                                 <standardMapConfiguration key="preferredConfiguration"/>
                             </mapView>
                             <button opaque="NO" contentMode="scaleToFill" misplaced="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="oiN-Af-aQl">
@@ -30,7 +30,7 @@
                                 </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="UBW-zk-4Lu">
-                                <rect key="frame" x="32" y="767" width="98" height="35"/>
+                                <rect key="frame" x="0.0" y="767" width="98" height="35"/>
                                 <state key="normal" title="Button"/>
                                 <buttonConfiguration key="configuration" style="filled" image="location.fill" catalog="system" title="現在地"/>
                                 <connections>
@@ -41,11 +41,11 @@
                         <viewLayoutGuide key="safeArea" id="vDu-zF-Fre"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
-                            <constraint firstItem="BU6-Nk-7Ws" firstAttribute="leading" secondItem="vDu-zF-Fre" secondAttribute="leading" constant="16" id="9M3-l7-QYw"/>
-                            <constraint firstItem="UBW-zk-4Lu" firstAttribute="leading" secondItem="BU6-Nk-7Ws" secondAttribute="leading" constant="16" id="Bmo-Es-Wpk"/>
+                            <constraint firstItem="BU6-Nk-7Ws" firstAttribute="leading" secondItem="vDu-zF-Fre" secondAttribute="leading" id="9M3-l7-QYw"/>
+                            <constraint firstItem="UBW-zk-4Lu" firstAttribute="leading" secondItem="BU6-Nk-7Ws" secondAttribute="leading" id="Bmo-Es-Wpk"/>
                             <constraint firstItem="BU6-Nk-7Ws" firstAttribute="top" secondItem="vDu-zF-Fre" secondAttribute="top" id="HcS-WO-o4r"/>
                             <constraint firstItem="BU6-Nk-7Ws" firstAttribute="bottom" secondItem="UBW-zk-4Lu" secondAttribute="bottom" constant="16" id="WGF-7P-uhI"/>
-                            <constraint firstItem="vDu-zF-Fre" firstAttribute="trailing" secondItem="BU6-Nk-7Ws" secondAttribute="trailing" constant="16" id="Zmt-Eq-zxt"/>
+                            <constraint firstItem="vDu-zF-Fre" firstAttribute="trailing" secondItem="BU6-Nk-7Ws" secondAttribute="trailing" id="Zmt-Eq-zxt"/>
                             <constraint firstItem="BU6-Nk-7Ws" firstAttribute="bottom" secondItem="vDu-zF-Fre" secondAttribute="bottom" id="v4y-R1-F60"/>
                             <constraint firstItem="oiN-Af-aQl" firstAttribute="centerX" secondItem="5EZ-qb-Rvc" secondAttribute="centerX" id="xuQ-Ez-8Ww"/>
                             <constraint firstItem="oiN-Af-aQl" firstAttribute="centerY" secondItem="5EZ-qb-Rvc" secondAttribute="centerY" id="z2n-rD-o1C"/>

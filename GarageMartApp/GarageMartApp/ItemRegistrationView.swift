@@ -7,17 +7,34 @@
 
 import SwiftUI
 import MapKit
+import CoreLocation
+import CoreLocation
+import ImageIO
+import MobileCoreServices
 
 struct ItemRegistrationView: View {
-    var coordinate: CLLocationCoordinate2D
+    @State var coordinate: CLLocationCoordinate2D
     @State private var selectedImage: UIImage? = nil
     @State private var showImagePicker = false // 画像ピッカーを表示するためのフラグ
+    @State private var isUseCurrentLocation = false
+    @State private var isSelectImageCoordinate = false //画像の位置情報を使うか選択するボタン
+    @State private var imageCoordinate: CLLocationCoordinate2D? // 画像の位置情報
+    @State private var isSelectCurrentCoordinate = false
+    @State private var region = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 35.6895, longitude: 139.6917), // 初期値：東京
+        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+    )
+    private let locationManager = CLLocationManager()
+    
     @State private var itemName: String = ""
     @State private var itemDescription: String = ""
     @State private var itemPrice: String = ""
     @State private var itemQuantity: String = ""
     @State private var selectedStock: StockCategory = .only
     @State private var selectedCategory: ItemCategory = .food
+    @State private var annotations: [AnnotatedLocation] = [
+        AnnotatedLocation(coordinate: CLLocationCoordinate2D(latitude: 35.6895, longitude: 139.6917))
+    ]
     let onRegister: (Item) -> Void
     var body: some View {
         ScrollView {
@@ -43,7 +60,41 @@ struct ItemRegistrationView: View {
                         // 画像ピッカーの表示
                         ImagePicker(selectedImage: $selectedImage)
                     }
+                    Text("マップから位置情報を選択する")
+                        .font(.headline)
+                    Map(coordinateRegion: .constant(defaultRegion()),  annotationItems: annotations) { item in
+                        MapPin(coordinate: item.coordinate, tint: .red)
+                    }
+                        .frame(height: 300)
+                        .gesture(DragGesture().onEnded { _ in
+                            // ピンの位置をマップで変更可能に
+                            updatePinFromMap()
+                        })
                     
+                    Toggle("現在地にピンを移動", isOn: $isUseCurrentLocation)
+                        .toggleStyle(SwitchToggleStyle())
+                        .onChange(of: isUseCurrentLocation) { newValue in
+                            if newValue {
+                                //　ピンの位置を現在地に移動する
+                                self.coordinate = updateToCurrentLocation()
+                            }
+                        }
+                    if selectedImage != nil {
+                        Toggle("写真の画像の位置情報を使う", isOn: $isSelectImageCoordinate)
+                            .toggleStyle(SwitchToggleStyle())
+                            .onChange(of: isSelectImageCoordinate) { newValue in
+                                if newValue {
+                                    // 画像の位置情報を取得し、coordinateにセット
+                                    if let imageCoordinate = updateToImageLocation() {
+                                        self.coordinate = imageCoordinate
+                                    } else {
+                                        // 位置情報が取得できない場合の処理
+                                        print("画像に位置情報が含まれていません")
+                                    }
+                                }
+                            }
+                    }
+
                     Text("アイテム登録")
                         .font(.headline)
                     
@@ -110,12 +161,68 @@ struct ItemRegistrationView: View {
         
         return resizedImage
     }
+    
+    private func defaultRegion() ->  MKCoordinateRegion {
+        region = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: coordinate.latitude, longitude: coordinate.longitude), // 初期値：東京
+            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+            )
+        return region
+    }
+
+    private func updateToCurrentLocation() -> CLLocationCoordinate2D{
+        if let location = locationManager.location?.coordinate {
+            annotations = [AnnotatedLocation(coordinate: location)]
+            region.center = location
+            return location
+        }
+        return coordinate
+    }
+
+    func updateToImageLocation() -> CLLocationCoordinate2D?  {
+        guard let image = selectedImage, let imageData = image.jpegData(compressionQuality: 1.0) else {
+            isSelectImageCoordinate = false
+            return nil
+        }
+
+        // 画像のメタデータを取得
+        if let source = CGImageSourceCreateWithData(imageData as CFData, nil) {
+            // メタデータの取得
+//            MARK:　gpsDict = metadata[kCGImagePropertyGPSDictionary as String] nilなので、調査を行う
+            if let metadata = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] {
+                if let gpsDict = metadata[kCGImagePropertyGPSDictionary as String] as? [String: Any] {
+                    if let latitude = gpsDict[kCGImagePropertyGPSLatitude as String] as? Double,
+                       let longitude = gpsDict[kCGImagePropertyGPSLongitude as String] as? Double {
+                        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                    }
+                }
+            }
+        }
+        isSelectImageCoordinate = false
+        return nil
+    }
+
+
+    private func updatePinFromMap() {
+        let newLocation = AnnotatedLocation(coordinate: region.center)
+        annotations = [newLocation]
+    }
+
+    private func requestLocationPermission() {
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.startUpdatingLocation()
+    }
 }
 
 extension View {
     func hideKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
+}
+
+struct AnnotatedLocation: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
 }
 
 struct SegmentStockPickerView: View {
@@ -157,7 +264,6 @@ struct SegmentCategoryPickerView: View {
         .padding()
     }
 }
-
 
 #Preview {
     ItemRegistrationView(

@@ -36,8 +36,8 @@ struct EventDetailView: View {
                     .padding([.horizontal, .bottom])
             }
             .background(GeometryReader { geometry in
-                Color.clear.onChange(of: geometry.frame(in: .global).minY) { value in
-                    scrollOffset = value
+                Color.clear.onChange(of: geometry.frame(in: .global).minY) { _, newValue in
+                    scrollOffset = newValue
                 }
             })
         }
@@ -65,7 +65,7 @@ struct EventDetailView: View {
 
 #Preview {
     @Previewable @State var isPresented = false
-    let event = Event(title: "マーケット開催中", description: "日用品色々揃えています", startDate: Date(), endDate: Date(), coordinate: Coordinate(latitude: 0, longitude: 0)) // 仮のEventを作成
+    let event = Event(title: "マーケット開催中", description: "日用品色々揃えています", startDate: Date(), endDate: Date(), coordinate: Coordinate(latitude: 0, longitude: 0), userId: "testUser") // 仮のEventを作成
 
     EventDetailView(isPresented: $isPresented, event: event)
 }

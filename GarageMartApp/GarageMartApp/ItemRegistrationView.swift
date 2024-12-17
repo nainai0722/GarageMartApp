@@ -62,8 +62,16 @@ struct ItemRegistrationView: View {
                     }
                     Text("マップから位置情報を選択する")
                         .font(.headline)
-                    Map(coordinateRegion: .constant(defaultRegion()),  annotationItems: annotations) { item in
-                        MapPin(coordinate: item.coordinate, tint: .red)
+                    Map(coordinateRegion: .constant(defaultRegion()), annotationItems: annotations) { item in
+                        MapAnnotation(coordinate: item.coordinate) {
+                            VStack {
+                                Image(systemName: "mappin.circle.fill")
+                                    .foregroundColor(.red)
+                                    .font(.title)
+                                Text("登録する位置")
+                                    .font(.caption)
+                            }
+                        }
                     }
                         .frame(height: 300)
                         .gesture(DragGesture().onEnded { _ in
@@ -73,7 +81,7 @@ struct ItemRegistrationView: View {
                     
                     Toggle("現在地にピンを移動", isOn: $isUseCurrentLocation)
                         .toggleStyle(SwitchToggleStyle())
-                        .onChange(of: isUseCurrentLocation) { newValue in
+                        .onChange(of: isUseCurrentLocation) { _, newValue in
                             if newValue {
                                 //　ピンの位置を現在地に移動する
                                 self.coordinate = updateToCurrentLocation()
@@ -82,7 +90,7 @@ struct ItemRegistrationView: View {
                     if selectedImage != nil {
                         Toggle("写真の画像の位置情報を使う", isOn: $isSelectImageCoordinate)
                             .toggleStyle(SwitchToggleStyle())
-                            .onChange(of: isSelectImageCoordinate) { newValue in
+                            .onChange(of: isSelectImageCoordinate) { _, newValue in
                                 if newValue {
                                     // 画像の位置情報を取得し、coordinateにセット
                                     if let imageCoordinate = updateToImageLocation() {

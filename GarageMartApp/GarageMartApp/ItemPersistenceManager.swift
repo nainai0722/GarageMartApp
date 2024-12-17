@@ -20,45 +20,40 @@ class ItemPersistenceManager {
     
     // 保存
     func save(item: Item,completion: @escaping (Result<Item, Error>)  -> Void) {
-        do {
-            let databaseRef = Database.database().reference()
-            let storageKey = "items"
+        let databaseRef = Database.database().reference()
+        let storageKey = "items"
 
-            guard let imageData = item.imageData else {
-                print("Error: No image data found.")
-                completion(.failure(ImageError.notFoundImageData))
-                return
-            }
+        guard let imageData = item.imageData else {
+            print("Error: No image data found.")
+            completion(.failure(ImageError.notFoundImageData))
+            return
+        }
 
-            // 1. 画像データをアップロード
-            uploadImage(imageData) { result in
-                switch result {
-                case .success(let url):
-                    // 2. URLを取得してitem.imageUrlに設定
-                    let itemData = item.toDictionary(url: url)
-                    
-                    // 3. Firebase Realtime Databaseに保存
-                    databaseRef.child(storageKey).childByAutoId().setValue(itemData) { error, ref in
-                        if let error = error {
-                            print("Error saving item: \(error.localizedDescription)")
-                            completion(.failure(error))
-                        } else {
-                            print("Item saved successfully!")
-                            // このitemだとImageUrlが格納されていない
-                            var savedItem = item
-                            savedItem.imageUrl = url
-                            completion(.success(savedItem))
-                        }
+        // 1. 画像データをアップロード
+        uploadImage(imageData) { result in
+            switch result {
+            case .success(let url):
+                // 2. URLを取得してitem.imageUrlに設定
+                let itemData = item.toDictionary(url: url)
+                
+                // 3. Firebase Realtime Databaseに保存
+                databaseRef.child(storageKey).childByAutoId().setValue(itemData) { error, ref in
+                    if let error = error {
+                        print("Error saving item: \(error.localizedDescription)")
+                        completion(.failure(error))
+                    } else {
+                        print("Item saved successfully!")
+                        // このitemだとImageUrlが格納されていない
+                        var savedItem = item
+                        savedItem.imageUrl = url
+                        completion(.success(savedItem))
                     }
-                    
-                case .failure(let error):
-                    print("Error uploading image: \(error.localizedDescription)")
-                    completion(.failure(error))
                 }
+                
+            case .failure(let error):
+                print("Error uploading image: \(error.localizedDescription)")
+                completion(.failure(error))
             }
-        } catch {
-            print("Failed to save items: \(error)")
-            completion(.failure(error))
         }
     }
     

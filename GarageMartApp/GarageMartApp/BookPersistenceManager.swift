@@ -14,19 +14,15 @@ class BookPersistenceManager {
     
     // 保存
     func save(book: Book) {
-        do {
-            let databaseRef = Database.database().reference()
-               let bookData = book.toDictionary() // Book型を辞書に変換
-               databaseRef.child(storageKey).childByAutoId().setValue(bookData) { error, ref in
-                   if let error = error {
-                       print("Error saving book: \(error.localizedDescription)")
-                   } else {
-                       print("Book saved successfully!")
-                   }
+        let databaseRef = Database.database().reference()
+           let bookData = book.toDictionary() // Book型を辞書に変換
+           databaseRef.child(storageKey).childByAutoId().setValue(bookData) { error, ref in
+               if let error = error {
+                   print("Error saving book: \(error.localizedDescription)")
+               } else {
+                   print("Book saved successfully!")
                }
-        } catch {
-            print("Bookの保存に失敗しました: \(error)")
-        }
+           }
     }
     
     // 読み込み

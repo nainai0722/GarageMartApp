@@ -38,8 +38,8 @@ struct ItemDetailView: View {
                     .font(.title)
             }
             .background(GeometryReader { geometry in
-                Color.clear.onChange(of: geometry.frame(in: .global).minY) { value in
-                    scrollOffset = value
+                Color.clear.onChange(of: geometry.frame(in: .global).minY) { _, newValue in
+                    scrollOffset = newValue
                 }
             })
         }
@@ -96,7 +96,7 @@ struct ItemImageView: View {
 
 #Preview {
     @Previewable @State var isPresented = false
-    let item = Item(id: "12345", name: "テスト", price: 1000, category: ItemCategory.toy, coordinate: Coordinate(latitude: 0, longitude: 0), stock: 1, stockCategory: StockCategory.few,imageData:UIImage(named: "ventilation_color")!.pngData()!) // 仮のItemを作成
-
+    let item = Item(id: "12345", name: "テスト", price: 1000, category: ItemCategory.toy, coordinate: Coordinate(latitude: 0, longitude: 0), stock: 1, stockCategory: StockCategory.few,userId: "testUser", imageData:UIImage(named: "ventilation_color")!.pngData()!) // 仮のItemを作成
+    
     ItemDetailView(isPresented: $isPresented, item: item)
 }

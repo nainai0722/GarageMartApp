@@ -209,7 +209,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     func checkLoginState() {
         self.groupLoginButton.isHidden = true
 //        アクセストークンの有無で判定する
-        if LoginManager.shared.checkToken(), let userId = LoginManager.shared.getUserID(){
+        if LoginManager.shared.checkToken(), let _ = LoginManager.shared.getUserID(){
             // マップ画面にとどまる
             
         } else {

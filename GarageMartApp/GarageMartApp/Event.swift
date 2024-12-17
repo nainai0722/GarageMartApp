@@ -16,16 +16,18 @@ struct Event:Codable,Annotatable {
     var coordinate: Coordinate
     var imageData: Data?
     var imageUrl: String?
+    var userId : String
     var createdAt: Date = Date() // 登録日時
     
     // 初期化メソッド
-    init(title: String, description: String, startDate: Date, endDate: Date, coordinate: Coordinate, image: Data? = nil) {
+    init(title: String, description: String, startDate: Date, endDate: Date, coordinate: Coordinate, image: Data? = nil,userId:String) {
         self.title = title
         self.description = description
         self.startDate = startDate
         self.endDate = endDate
         self.coordinate = coordinate
         self.imageData = image
+        self.userId = userId
     }
     
     func toDictionary(url: String) -> [String: Any] {
@@ -40,6 +42,7 @@ struct Event:Codable,Annotatable {
                 "longitude": coordinate.longitude
             ],
             "imageUrl": url,
+            "userId": userId,
             "createdAt": ISO8601DateFormatter().string(from: createdAt) // 登録日時
         ]
     }
@@ -59,6 +62,7 @@ struct Event:Codable,Annotatable {
             let endDateString = dictionary["endDate"] as? String,
             let endDate = ISO8601DateFormatter().date(from: endDateString),
             let createdAtString = dictionary["createdAt"] as? String,
+            let userId = dictionary["userId"] as? String,
             let createdAt = ISO8601DateFormatter().date(from: createdAtString)
         else {
             return nil
@@ -73,6 +77,7 @@ struct Event:Codable,Annotatable {
         self.startDate = startDate
         self.endDate = endDate
         self.imageData = imageData
+        self.userId = userId
         self.createdAt = createdAt
     }
 
@@ -86,6 +91,7 @@ struct Event:Codable,Annotatable {
         case endDate
         case coordinate
         case imageData
+        case userId
         case createdAt
     }
 

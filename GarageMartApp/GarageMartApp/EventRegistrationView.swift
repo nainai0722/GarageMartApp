@@ -63,13 +63,15 @@ struct EventRegistrationView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
                         let location = Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude)
+                        guard let userId = LoginManager.shared.getUserID() else { return }
                         let newEvent = Event(
                             title: title,
                             description: description,
                             startDate: startDate,
                             endDate: endDate,
                             coordinate: location,
-                            image: selectedImage?.pngData()
+                            image: selectedImage?.pngData(),
+                            userId:userId
                         )
                         onRegister(newEvent, selectedImage)
                         presentationMode.wrappedValue.dismiss()

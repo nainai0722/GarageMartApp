@@ -40,7 +40,7 @@ struct Item: Codable,Equatable,Hashable,Annotatable {
     var stock: Int
     var stockCategory: StockCategory
     var groupId: String = "myGroup"
-    var userId :String = "testUser"
+    var userId :String
     var imageData: Data?
     let registeredDate: Date
     let eventID: UUID? // どのイベントに属しているかを関連付け
@@ -73,7 +73,7 @@ struct Item: Codable,Equatable,Hashable,Annotatable {
         stock: Int,
         stockCategory: StockCategory,
         groupId: String = "myGroup",
-        userId: String = "testUser",
+        userId: String,
         registeredDate: Date = Date(),
         imageData:Data,
         eventID: UUID? = nil

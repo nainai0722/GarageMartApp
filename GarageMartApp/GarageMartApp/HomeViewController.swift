@@ -209,8 +209,9 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     func checkLoginState() {
         self.groupLoginButton.isHidden = true
 //        アクセストークンの有無で判定する
-        if LoginManager.shared.checkToken() {
+        if LoginManager.shared.checkToken(), let userId = LoginManager.shared.getUserID(){
             // マップ画面にとどまる
+            
         } else {
             //　トークンがなければ、再取得を実行する
             //  TODO: 処理の流れを記述しただけでトークンの成否などの詳細は未判定
@@ -320,11 +321,11 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     
     func showUserLoginButton() {
         //SwiftUI画面に遷移する UserLoginView
-        let itemRegistrationView = UserLoginView(onLogin: { [weak self] email in
+        let userLoginView = UserLoginView(onLogin: { [weak self] email in
              print("Login したのは\(email)ユーザー")
             self?.navigationController?.popViewController(animated: true)
         })
-        let hostingController = UIHostingController(rootView: itemRegistrationView)
+        let hostingController = UIHostingController(rootView: userLoginView)
         navigationController?.pushViewController(hostingController, animated: true)
     }
     
@@ -607,18 +608,12 @@ extension HomeViewController {
 // MARK: デバッグ用のデータ置き場
 extension HomeViewController {
     
-    static var user = User(name: "nana", email: "test@email.com", additionalInfo: [:])
-    
     static var group = Group(name: "myGroup", password: "123456", createdBy: "2024-12-07 21:46:30", members: [])
     
     func checkDebugUserGroup() {
         if UserDefaults.standard.string(forKey: "groupID") == nil {
             let groupID = HomeViewController.group.id.uuidString
             UserDefaults.standard.set(groupID, forKey: "groupID")
-        }
-        if UserDefaults.standard.string(forKey: "userID") == nil {
-            let userID = HomeViewController.user.id.uuidString
-            UserDefaults.standard.set(userID, forKey: "userID")
         }
     }
 }

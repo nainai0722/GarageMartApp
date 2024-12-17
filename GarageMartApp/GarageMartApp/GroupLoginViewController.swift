@@ -7,6 +7,7 @@
 
 import UIKit
 import FirebaseAuth
+import SwiftUI
 
 enum inputError:Error {
     case nameBlank
@@ -60,14 +61,13 @@ class GroupLoginViewController: UIViewController {
     }
     
     @IBAction func toUserRegistrationView(_ sender: Any) {
-        // 新しいStoryboardをインスタンス化
-        let storyboard = UIStoryboard(name: "UserRegistrationView", bundle: nil)
-        
-        // Storyboard IDを使ってViewControllerをインスタンス化
-        if let viewController = storyboard.instantiateViewController(withIdentifier: "UserRegistrationViewController") as? UserRegistrationViewController {
-            // ViewControllerを表示
-            self.navigationController?.pushViewController(viewController, animated: true)
-        }
+        //SwiftUI画面に遷移する UserLoginView
+        let itemRegistrationView = UserLoginView(onLogin: { [weak self] email in
+             print("Login したのは\(email)ユーザー")
+            self?.navigationController?.popViewController(animated: true)
+        })
+        let hostingController = UIHostingController(rootView: itemRegistrationView)
+        navigationController?.pushViewController(hostingController, animated: true)
     }
     
     /*

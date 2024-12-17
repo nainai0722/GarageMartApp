@@ -119,8 +119,9 @@ struct ItemRegistrationView: View {
                     Button(action: {
                         // 登録処理
                         guard let selectedImage = selectedImage else { return }
+                        guard let userId = LoginManager.shared.getUserID() else { return }
                         guard let intPrice = Int(itemPrice), let intQuantity = Int(itemQuantity),let resizedImage = resizeImageToHeight(image: selectedImage, targetHeight: 1024) ,let imageData = resizedImage.jpegData(compressionQuality: 0.7) else { return }
-                        let inputItem = Item(id: UUID().uuidString, name: itemName, description: itemDescription, price: intPrice, category:selectedCategory, coordinate: Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude), stock: intQuantity, stockCategory:selectedStock ,imageData:imageData)
+                        let inputItem = Item(id: UUID().uuidString, name: itemName, description: itemDescription, price: intPrice, category:selectedCategory, coordinate: Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude), stock: intQuantity, stockCategory:selectedStock ,userId:userId, imageData:imageData)
                         
                         onRegister(inputItem)
                     }) {

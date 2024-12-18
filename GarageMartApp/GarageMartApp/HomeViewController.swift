@@ -472,7 +472,7 @@ extension HomeViewController :MKMapViewDelegate {
     /// - Parameter item: Item型に位置情報をセットして引数として渡す
     private func showItemDetail(for item: Item) {
         // SwiftUIのビューを作成
-        let itemDetailView = ItemDetailView(isPresented: .constant(true), item: item)
+        let itemDetailView = ItemDetailView(isPresented: .constant(true), item: item, isEditEnabled: false)
         let hostingController = UIHostingController(rootView: itemDetailView)
         
         // モーダルのスタイル設定
@@ -590,6 +590,10 @@ extension HomeViewController {
         enumeratedCategorableButton(customCategories: stocks,setSelector: #selector(stockButtonTapped(_:)))
     }
     
+    /// アイテムの選択肢項目をボタンにして横スクロール表示する
+    /// - Parameters:
+    ///   - customCategories: アイテムの選択肢項目をリストで渡す
+    ///   - setSelector: ボタンタップ時の処理を指定して渡す
     private func enumeratedCategorableButton<T:Categorable>(customCategories: [T], setSelector:Selector){
         for (index, customCategory) in customCategories.enumerated() {
             let button = UIButton()

@@ -16,10 +16,11 @@ struct CustomButtonStyle: ButtonStyle {
             .padding(8)
             .frame(maxWidth: .infinity)
             .background(isDisabled ? Color.gray : Color.blue)
-            .cornerRadius(10)
+            .cornerRadius(5)
             .tint(.white)
             .font(.headline)
             .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .shadow(radius: 5,x: 5 ,y: 5)
             .disabled(isDisabled)
     }
 }

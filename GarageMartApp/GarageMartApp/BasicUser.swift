@@ -5,6 +5,12 @@
 //  Created by 指原奈々 on 2024/12/18.
 //
 
+enum Favorite: String,CaseIterable,Categorable {
+//ウィッシュリストのこと
+    case favorite = "買いたいもの"
+}
+
+
 struct BasicUser {
     var id :String? //サーバ側で連携するid
     var userId :String //wishListと紐づくuserId

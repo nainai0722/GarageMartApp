@@ -10,10 +10,6 @@ import MapKit
 import CoreLocation
 import SwiftUI
 
-enum Favorite: String,CaseIterable,Categorable {
-    
-    case favorite = "買いたいもの"
-}
 
 class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManagerDelegate, UIActionSheetDelegate {
     @IBOutlet weak var mapView: MKMapView!
@@ -43,6 +39,9 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     var items:[Item] = []
     var events:[Event] = []
     private var isItemDetailPresented = false
+    private var hostingController: UIHostingController<SideMenuView>?
+    private var menuIsVisible = false
+        
     
     @IBOutlet weak var groupLoginButton: UIButton!
     
@@ -91,12 +90,66 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
                 return true // 全カテゴリを含む場合
             }
         }
+        // スワイプジェスチャーの設定
+                let swipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
+                swipeGesture.direction = .right
+                self.view.addGestureRecognizer(swipeGesture)
     }
     
-    @objc private func showMenu() {
-        //左からメニュー画面を出現させる
-        print("メニュー出現")
-        //メニューの内容は考えていない
+    // メニュー表示用のメソッド
+    @objc func showMenu() {
+        if !menuIsVisible {
+            // メニューを表示
+            showSideMenu()
+        } else {
+            // メニューを非表示
+            hideSideMenu()
+        }
+    }
+    
+    private func showSideMenu() {
+            // SideMenuViewのSwiftUIビューをUIHostingControllerに変換
+            let sideMenuView = SideMenuView()
+            hostingController = UIHostingController(rootView: sideMenuView)
+            
+            // ホスティングコントローラーのビューを表示
+            guard let hostingController = hostingController else { return }
+            
+            // ホスティングコントローラーのビューを現在のビューに追加
+            addChild(hostingController)
+            view.addSubview(hostingController.view)
+            hostingController.didMove(toParent: self)
+            
+            // 初期位置を設定（左端に隠す）
+            hostingController.view.frame = CGRect(x: -250, y: 0, width: 250, height: self.view.frame.height)
+            
+            // アニメーションでスライドイン
+            UIView.animate(withDuration: 0.3, animations: {
+                hostingController.view.frame.origin.x = 0
+            }) { _ in
+                self.menuIsVisible = true
+            }
+        }
+        
+        // メニューを非表示にする処理
+    private func hideSideMenu() {
+        guard let hostingController = hostingController else { return }
+        
+        // アニメーションでスライドアウト
+        UIView.animate(withDuration: 0.3, animations: {
+            hostingController.view.frame.origin.x = -250
+        }) { _ in
+            hostingController.view.removeFromSuperview()
+            hostingController.removeFromParent()
+            self.menuIsVisible = false
+        }
+    }
+    
+    @objc func handleSwipe(_ gesture: UISwipeGestureRecognizer) {
+        if !menuIsVisible {
+            // メニューを表示
+            showSideMenu()
+        }
     }
     
     @objc private func dismissKeyboard() {

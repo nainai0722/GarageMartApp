@@ -19,7 +19,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		F81A59E52D0405AF0038D1FB /* Exceptions for "GarageMartApp" folder in "GarageMartApp" target */ = {
+		F8C3B9972D128E5A003E5038 /* Exceptions for "GarageMartApp" folder in "GarageMartApp" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -29,10 +29,10 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		F81A59D52D0405AD0038D1FB /* GarageMartApp */ = {
+		F8C3B96D2D128E5A003E5038 /* GarageMartApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				F81A59E52D0405AF0038D1FB /* Exceptions for "GarageMartApp" folder in "GarageMartApp" target */,
+				F8C3B9972D128E5A003E5038 /* Exceptions for "GarageMartApp" folder in "GarageMartApp" target */,
 			);
 			path = GarageMartApp;
 			sourceTree = "<group>";
@@ -65,7 +65,7 @@
 		F81A59CA2D0405AD0038D1FB = {
 			isa = PBXGroup;
 			children = (
-				F81A59D52D0405AD0038D1FB /* GarageMartApp */,
+				F8C3B96D2D128E5A003E5038 /* GarageMartApp */,
 				F81A59D42D0405AD0038D1FB /* Products */,
 				2390910903D070AB2C4F6465 /* Pods */,
 			);
@@ -95,7 +95,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				F81A59D52D0405AD0038D1FB /* GarageMartApp */,
+				F8C3B96D2D128E5A003E5038 /* GarageMartApp */,
 			);
 			name = GarageMartApp;
 			productName = GarageMartApp;

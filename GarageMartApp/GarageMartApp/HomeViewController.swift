@@ -10,6 +10,10 @@ import MapKit
 import CoreLocation
 import SwiftUI
 
+enum Favorite: String,CaseIterable,Categorable {
+    
+    case favorite = "買いたいもの"
+}
 
 class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManagerDelegate, UIActionSheetDelegate {
     @IBOutlet weak var mapView: MKMapView!
@@ -17,6 +21,9 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
     let searchBar = UISearchBar()
     private var categories: [ItemCategory] = ItemCategory.allCases
     private var stocks: [StockCategory] = StockCategory.allCases
+    private var favorites: [Favorite] = Favorite.allCases
+    private var filterElement: (any Categorable)?
+    private var favoriteList:[Item] = []
     private lazy var scrollView: UIScrollView = {
         let scrollView = UIScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -101,13 +108,17 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
             let category = categories[sender.tag]
             print("\(category.rawValue) ボタンがタップされました！")
             
-            focusOn(filterBy: category) { item, category in
+            focusOn(filterBy: category, attemptCount: 0) { item, category in
                 if category == .all {
                     return true // 全カテゴリを含む場合
                 } else {
                     return item.category == category
                 }
+            } onError: { error in
+                self.showErrorAlert(message: error)
             }
+
+
         } else {
             print("Invalid tag, out of bounds")
         }
@@ -125,13 +136,83 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
             print("Invalid tag, out of bounds")
         }
     }
+//                favoriteButtonTapped
+    @objc func favoriteButtonTapped(_ sender: UIButton) {
+        if sender.tag < favorites.count {
+            let favorite = favorites[sender.tag]
+            print("\(favorite.rawValue) ボタンがタップされました！")
+            var filterList:[Item] = []
+            let userId = LoginManager.shared.getUserID()
+            BasicUserPersistenceManager().loadBasicUsers{ basicUsers in
+                for basicUser in basicUsers {
+                    if userId == basicUser.userId {
+                        for list in basicUser.wishList{
+                            filterList = self.items.filter{$0.id == list }
+                            self.focusOnFavorite(favoriteList: filterList, attemptCount:0){eror in
+                                self.showErrorAlert(title: "エラー", message: "買いたいリストが見つかりませんデイsた", buttonTitle: "OK")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     
     
     @IBAction func moveToCurrentLocation(_ sender: Any) {
         moveToUserLocation()
     }
     
-    func focusOn<T: Equatable>(filterBy key: T, filterHandler: @escaping (Item, T) -> Bool) {
+    func filterAnnotations<T: Annotatable>(list: [T]) -> [T] {
+        return list.filter { element in
+            let coordinate = CLLocationCoordinate2D(latitude: element.coordinate.latitude, longitude: element.coordinate.longitude)
+            let point = MKMapPoint(coordinate)
+            return mapView.visibleMapRect.contains(point)
+        }
+    }
+
+    
+   func focusOnFavorite(favoriteList: [Item], attemptCount: Int = 0, onError: ((String) -> Void)? = nil) {
+        let maxAttempts = 10
+        guard attemptCount < maxAttempts else {
+            print("最大試行回数に到達しました")
+            onError?("買いたいリストに入れたアイテムは見つかりませんでした")
+            return
+        }
+
+        let filteredItems = filterAnnotations(list: favoriteList)
+        let filteredEvents = filterAnnotations(list: events)
+
+        if filteredItems.isEmpty {
+            zoomOutMap(scale: 1.5)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.focusOnFavorite(favoriteList: favoriteList, attemptCount: attemptCount + 1, onError: onError)
+            }
+        } else {
+            replaceAnnotations(to: filteredItems) { ItemAnnotation(item: $0) }
+            replaceAnnotations(to: filteredEvents) { EventAnnotation(event: $0) }
+        }
+    }
+
+    func zoomOutMap(centerCoordinate: CLLocationCoordinate2D? = nil, scale: Double = 1.5) {
+        let currentRegion = mapView.region
+        let newCenter = centerCoordinate ?? currentRegion.center
+        let newSpan = MKCoordinateSpan(
+            latitudeDelta: currentRegion.span.latitudeDelta * scale,
+            longitudeDelta: currentRegion.span.longitudeDelta * scale
+        )
+        let newRegion = MKCoordinateRegion(center: newCenter, span: newSpan)
+        mapView.setRegion(newRegion, animated: true)
+    }
+
+    
+    
+    func focusOn<T: Equatable>(
+        filterBy key: T,
+        attemptCount: Int = 10,
+        filterHandler: @escaping (Item, T) -> Bool,
+        onError: ((String) -> Void)? = nil
+    ){
         // 現在表示中の地図領域を取得
         let visibleMapRect = mapView.visibleMapRect
 
@@ -149,6 +230,15 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
             return visibleMapRect.contains(point)
         }
 
+        if filteredItems.isEmpty {
+            zoomOutMap(scale: 1.5)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.focusOn(filterBy: key, attemptCount: attemptCount + 1, filterHandler: filterHandler, onError: onError)
+            }
+        } else {
+            replaceAnnotations(to: filteredItems) { ItemAnnotation(item: $0) }
+            replaceAnnotations(to: filteredEvents) { EventAnnotation(event: $0) }
+        }
         // マップ上のアノテーションを更新
         replaceAnnotations(to: filteredItems) { item in
             return ItemAnnotation(item: item)
@@ -588,6 +678,8 @@ extension HomeViewController {
         enumeratedCategorableButton(customCategories: categories,setSelector: #selector(categoryButtonTapped(_:)))
         // ストックボタンをStackViewに追加
         enumeratedCategorableButton(customCategories: stocks,setSelector: #selector(stockButtonTapped(_:)))
+        
+        enumeratedCategorableButton(customCategories: favorites,setSelector: #selector(favoriteButtonTapped(_:)))
     }
     
     /// アイテムの選択肢項目をボタンにして横スクロール表示する

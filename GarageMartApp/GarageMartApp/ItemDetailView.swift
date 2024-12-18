@@ -47,9 +47,12 @@ struct ItemDetailView: View {
                         .cornerRadius(10)
                         .shadow(radius: 5,x: 5 ,y: 5)
                 }
+                .padding([.top, .horizontal])
                 Text("金額 : " + String(item.price) + "円")
                     .font(.title)
+                    .padding([.top, .horizontal])
                 sameUserItemsHorizontalScrollView(item: item)
+                    .padding(.horizontal)
                 Button(action:{
                     wishListButtonAction()
                 }){
@@ -57,9 +60,11 @@ struct ItemDetailView: View {
                 }
                 .buttonStyle(CustomButtonStyle(isDisabled: isButtonDisabled))
                 .disabled(isButtonDisabled)
+                .padding(.horizontal)
                 
                 Text("買いたい人が\(count)人います")
                     .font(.headline)
+                    .padding(.horizontal)
             
                 if isEditEnabled {
                     Button(action:{
@@ -69,6 +74,7 @@ struct ItemDetailView: View {
                             .background(Color(.blue))
                     }
                     .buttonStyle(CustomButtonStyle(isDisabled: isButtonDisabled))
+                    .padding(.horizontal)
                 }
             }
             .background(GeometryReader { geometry in
@@ -207,7 +213,6 @@ struct sameUserItemsHorizontalScrollView: View {
                         .cornerRadius(5)
                         .padding(5)
                         .shadow(radius: 5,x: 5 ,y: 5)
-                        .padding(.horizontal)
                 }
             }
         }

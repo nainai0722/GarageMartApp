@@ -91,9 +91,9 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
             }
         }
         // スワイプジェスチャーの設定
-                let swipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
-                swipeGesture.direction = .right
-                self.view.addGestureRecognizer(swipeGesture)
+        let swipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
+        swipeGesture.direction = .right
+        self.view.addGestureRecognizer(swipeGesture)
     }
     
     // メニュー表示用のメソッド
@@ -266,6 +266,12 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
         filterHandler: @escaping (Item, T) -> Bool,
         onError: ((String) -> Void)? = nil
     ){
+        let maxAttempts = 10
+        guard attemptCount < maxAttempts else {
+            print("最大試行回数に到達しました")
+            onError?("買いたいリストに入れたアイテムは見つかりませんでした")
+            return
+        }
         // 現在表示中の地図領域を取得
         let visibleMapRect = mapView.visibleMapRect
 

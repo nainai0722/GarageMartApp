@@ -9,12 +9,14 @@ import Foundation
 import FirebaseDatabase
 import FirebaseStorage
 import UIKit
+//import AppIntents
+//import CoreTransferable
 
 enum ImageError:Error {
     case notFoundImageData
 }
 
-/// アイテムを扱うマネージャー構造体
+/// アイテムを扱うマネージャークラス
 class ItemPersistenceManager {
     private let storageKey = "items"
     
@@ -83,7 +85,6 @@ class ItemPersistenceManager {
         case notFoundDataById
         case failedImageFromData
     }
-
 
     func fetchImage(from item:Item, completion: @escaping (Result<UIImage, Error>) -> Void) {
         // idをキーにして紐づいているローカルデータがあれば取得して返す

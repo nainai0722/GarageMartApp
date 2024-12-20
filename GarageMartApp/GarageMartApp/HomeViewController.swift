@@ -11,7 +11,7 @@ import CoreLocation
 import SwiftUI
 
 
-class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManagerDelegate, UIActionSheetDelegate {
+class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency CLLocationManagerDelegate, UIActionSheetDelegate {
     @IBOutlet weak var mapView: MKMapView!
     var currentLocation:CLLocation?
     let searchBar = UISearchBar()
@@ -257,8 +257,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
         let newRegion = MKCoordinateRegion(center: newCenter, span: newSpan)
         mapView.setRegion(newRegion, animated: true)
     }
-
-    
     
     func focusOn<T: Equatable>(
         filterBy key: T,
@@ -400,8 +398,10 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
                 //戻る
                 self.navigationController?.popViewController(animated: true)
                 
-                // 一時的なアノテーションを削除
-                self.removeAnnotations(ofType: TemporaryAnnotation.self)
+                self.showAlertWithAction(title:"確認", message:"登録した場所に移動しますか？"){ action in
+                    let location = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
+                    self.mapView.setCenter(location, animated: true)
+                }
                 
                 ItemPersistenceManager().loadItems(completion: { items in
                     self.items = items
@@ -412,11 +412,12 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
             }
             if case .failure(let failure) = result {
                 print("登録失敗。 \(failure)")
-                // 一時的なアノテーションを削除
-                self.removeAnnotations(ofType: TemporaryAnnotation.self)
             }
         }
+        // 一時的なアノテーションを削除
+        self.removeAnnotations(ofType: TemporaryAnnotation.self)
     }
+    
     // 登録されたイベントを処理するメソッド
     private func handleEventRegistration(event: Event, image: UIImage) {
         EventPersistenceManager().save(event: event){ result in
@@ -424,9 +425,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
                 print("登録されたアイテム: \(item)")
                 //戻る
                 self.navigationController?.popViewController(animated: true)
-                
-                // 一時的なアノテーションを削除
-                self.removeAnnotations(ofType: TemporaryAnnotation.self)
                 
                 EventPersistenceManager().loadEvents(completion: { events in
                     self.events = events
@@ -437,10 +435,10 @@ class HomeViewController: UIViewController,UISearchBarDelegate,CLLocationManager
             }
             if case .failure(let failure) = result {
                 print("イベント登録失敗。 \(failure)")
-                // 一時的なアノテーションを削除
-                self.removeAnnotations(ofType: TemporaryAnnotation.self)
             }
         }
+        // 一時的なアノテーションを削除
+        self.removeAnnotations(ofType: TemporaryAnnotation.self)
     }
 
     func replaceAnnotations<T: Annotatable, A: MKAnnotation>(to items: [T], createAnnotation: (T) -> A) {

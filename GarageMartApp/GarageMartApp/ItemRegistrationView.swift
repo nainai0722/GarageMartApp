@@ -11,19 +11,22 @@ import CoreLocation
 import CoreLocation
 import ImageIO
 import MobileCoreServices
+import PhotosUI
+import Photos
+
 
 struct ItemRegistrationView: View {
     @State var coordinate: CLLocationCoordinate2D
     @State private var selectedImage: UIImage? = nil
+    @State var gpsCoordinates: CLLocationCoordinate2D?
+    @State private var showPermissionAlert = false
+    @State private var showErrorAlert = false
     @State private var showImagePicker = false // 画像ピッカーを表示するためのフラグ
     @State private var isUseCurrentLocation = false
     @State private var isSelectImageCoordinate = false //画像の位置情報を使うか選択するボタン
     @State private var imageCoordinate: CLLocationCoordinate2D? // 画像の位置情報
     @State private var isSelectCurrentCoordinate = false
-    @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 35.6895, longitude: 139.6917), // 初期値：東京
-        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-    )
+    @State var region: MKCoordinateRegion
     private let locationManager = CLLocationManager()
     
     @State private var itemName: String = ""
@@ -36,6 +39,7 @@ struct ItemRegistrationView: View {
         AnnotatedLocation(coordinate: CLLocationCoordinate2D(latitude: 35.6895, longitude: 139.6917))
     ]
     let onRegister: (Item) -> Void
+    
     var body: some View {
         ScrollView {
             ZStack{
@@ -52,17 +56,26 @@ struct ItemRegistrationView: View {
                     
                     // フォトライブラリから画像を選択するボタン
                     Button(action: {
-                        showImagePicker.toggle()
+                        checkPhotoLibraryPermission()
+//                        showImagePicker.toggle()
                     }) {
                         Text("画像を選択")
                     }
+                    .alert(isPresented: $showPermissionAlert) {
+                                    Alert(
+                                        title: Text("写真ライブラリへのアクセスが許可されていません"),
+                                        message: Text("設定アプリでアクセスを許可してください。"),
+                                        primaryButton: .default(Text("設定を開く"), action: openAppSettings),
+                                        secondaryButton: .cancel()
+                                    )
+                                }
                     .sheet(isPresented: $showImagePicker) {
                         // 画像ピッカーの表示
-                        ImagePicker(selectedImage: $selectedImage)
+                        PHPicker(selectedImage: $selectedImage, gpsCoordinates: $gpsCoordinates)
                     }
                     Text("マップから位置情報を選択する")
                         .font(.headline)
-                    Map(coordinateRegion: .constant(defaultRegion()), annotationItems: annotations) { item in
+                    Map(coordinateRegion: .constant(region), annotationItems: annotations) { item in
                         MapAnnotation(coordinate: item.coordinate) {
                             VStack {
                                 Image(systemName: "mappin.circle.fill")
@@ -83,6 +96,7 @@ struct ItemRegistrationView: View {
                         .toggleStyle(SwitchToggleStyle())
                         .onChange(of: isUseCurrentLocation) { _, newValue in
                             if newValue {
+                                isSelectImageCoordinate = false
                                 //　ピンの位置を現在地に移動する
                                 self.coordinate = updateToCurrentLocation()
                             }
@@ -93,13 +107,23 @@ struct ItemRegistrationView: View {
                             .onChange(of: isSelectImageCoordinate) { _, newValue in
                                 if newValue {
                                     // 画像の位置情報を取得し、coordinateにセット
-                                    if let imageCoordinate = updateToImageLocation() {
+                                    if let imageCoordinate = gpsCoordinates {
+                                        isUseCurrentLocation = false
+                                        annotations = [AnnotatedLocation(coordinate: imageCoordinate)]
+                                        region.center = imageCoordinate
                                         self.coordinate = imageCoordinate
                                     } else {
                                         // 位置情報が取得できない場合の処理
-                                        print("画像に位置情報が含まれていません")
+                                        isSelectImageCoordinate = false
+                                        showErrorAlert = true
                                     }
                                 }
+                            }.alert(isPresented: $showErrorAlert) {
+                                Alert(
+                                    title: Text("エラー"),
+                                    message: Text("画像に位置情報が含まれていません"),
+                                    dismissButton: .default(Text("OK"))
+                                )
                             }
                     }
 
@@ -152,6 +176,9 @@ struct ItemRegistrationView: View {
                 }
             }
         }
+        .onAppear(){
+            annotations = [AnnotatedLocation(coordinate: coordinate)]
+        }
     }
     // 入力がすべて有効か判定
     private func isFormValid() -> Bool {
@@ -170,14 +197,6 @@ struct ItemRegistrationView: View {
         
         return resizedImage
     }
-    
-    private func defaultRegion() ->  MKCoordinateRegion {
-        region = MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: coordinate.latitude, longitude: coordinate.longitude), // 初期値：東京
-            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-            )
-        return region
-    }
 
     private func updateToCurrentLocation() -> CLLocationCoordinate2D{
         if let location = locationManager.location?.coordinate {
@@ -193,7 +212,6 @@ struct ItemRegistrationView: View {
             isSelectImageCoordinate = false
             return nil
         }
-
         // 画像のメタデータを取得
         if let source = CGImageSourceCreateWithData(imageData as CFData, nil) {
             // メタデータの取得
@@ -221,6 +239,34 @@ struct ItemRegistrationView: View {
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
     }
+    
+    private func checkPhotoLibraryPermission() {
+        let status = PHPhotoLibrary.authorizationStatus()
+        switch status {
+        case .authorized:
+            showImagePicker = true // アクセスが許可されている場合、ピッカーを開く
+        case .denied, .restricted:
+            showPermissionAlert = true // アクセス拒否されている場合、アラートを表示
+        case .notDetermined:
+            PHPhotoLibrary.requestAuthorization { newStatus in
+                DispatchQueue.main.async {
+                    if newStatus == .authorized {
+                        showImagePicker = true
+                    } else {
+                        showPermissionAlert = true
+                    }
+                }
+            }
+        @unknown default:
+            showPermissionAlert = true
+        }
+    }
+    
+    private func openAppSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+    }
 }
 
 extension View {
@@ -228,6 +274,7 @@ extension View {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
+// MARK: 写真ライブラリへのアクセス関連処理
 
 struct AnnotatedLocation: Identifiable {
     let id = UUID()
@@ -277,6 +324,10 @@ struct SegmentCategoryPickerView: View {
 #Preview {
     ItemRegistrationView(
         coordinate: CLLocationCoordinate2D(latitude: 0.0, longitude: 0.0),
+        region: MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 35.6895, longitude: 139.6917), // 初期値：東京
+            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+        ),
         onRegister: { item in
             print("Preview Registration:")
             print("Item name: \(item.name), Category: \(item.category)")

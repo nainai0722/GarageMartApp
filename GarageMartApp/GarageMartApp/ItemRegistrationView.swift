@@ -247,7 +247,6 @@ struct ItemRegistrationView: View {
         // 画像のメタデータを取得
         if let source = CGImageSourceCreateWithData(imageData as CFData, nil) {
             // メタデータの取得
-//            MARK:　gpsDict = metadata[kCGImagePropertyGPSDictionary as String] nilなので、調査を行う
             if let metadata = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] {
                 if let gpsDict = metadata[kCGImagePropertyGPSDictionary as String] as? [String: Any] {
                     if let latitude = gpsDict[kCGImagePropertyGPSLatitude as String] as? Double,

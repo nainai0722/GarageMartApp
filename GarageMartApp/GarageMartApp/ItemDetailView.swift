@@ -75,10 +75,8 @@ struct ItemDetailView: View {
                     Button(action:{
                         // このモーダルビュー閉じる
                         dismiss()
+                        //　呼び出し元にitem情報を渡す
                         onEdit(item)
-                        //　itemを渡しつつItem登録画面を表示する
-                        
-                        
                     }){
                         Text("編集する")
                             .background(Color(.blue))

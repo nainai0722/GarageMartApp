@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import UIKit
 
 /// アイテムカテゴリー一覧
 enum ItemCategory:String,Codable,Equatable, Hashable,CaseIterable,Categorable {

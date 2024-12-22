@@ -9,8 +9,6 @@ import Foundation
 import FirebaseDatabase
 import FirebaseStorage
 import UIKit
-//import AppIntents
-//import CoreTransferable
 
 enum ImageError:Error {
     case notFoundImageData

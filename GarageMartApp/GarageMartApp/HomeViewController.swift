@@ -10,6 +10,12 @@ import MapKit
 import CoreLocation
 import SwiftUI
 
+enum ContentMode {
+    case itemMode
+    case eventMode
+    case catMode
+}
+
 class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency CLLocationManagerDelegate, UIActionSheetDelegate {
     @IBOutlet weak var mapView: MKMapView!
     var currentLocation:CLLocation?
@@ -41,6 +47,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
     private var hostingController: UIHostingController<SideMenuView>?
     private var menuIsVisible = false
         
+    private var contentMode:ContentMode = .itemMode
     
     @IBOutlet weak var groupLoginButton: UIButton!
     
@@ -106,9 +113,25 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         }
     }
     
+    func setAnnotationsForMode(items:[Item],events:[Event]) {
+        switch contentMode {
+        case .itemMode:
+               //アノテーションをアイテムだけにする
+                replaceAnnotations(to: items, createAnnotation: {ItemAnnotation(item: $0)})
+        case .eventMode:
+               //アノテーションをイベントだけにする
+               replaceAnnotations(to: events, createAnnotation: {EventAnnotation(event: $0)})
+        default:
+               break
+        }
+    }
+    
     private func showSideMenu() {
             // SideMenuViewのSwiftUIビューをUIHostingControllerに変換
-            let sideMenuView = SideMenuView()
+        let sideMenuView = SideMenuView(onSelectMode: {[weak self] contentMode in
+            self?.contentMode = contentMode
+            self?.setAnnotationsForMode(items: self?.items ?? [], events: self!.events)
+        })
             hostingController = UIHostingController(rootView: sideMenuView)
             
             // ホスティングコントローラーのビューを表示
@@ -188,7 +211,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             print("Invalid tag, out of bounds")
         }
     }
-//                favoriteButtonTapped
+
     @objc func favoriteButtonTapped(_ sender: UIButton) {
         if sender.tag < favorites.count {
             let favorite = favorites[sender.tag]
@@ -198,11 +221,12 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             BasicUserPersistenceManager().loadBasicUsers{ basicUsers in
                 for basicUser in basicUsers {
                     if userId == basicUser.userId {
-                        for list in basicUser.wishList{
-                            filterList = self.items.filter{$0.id == list }
-                            self.focusOnFavorite(favoriteList: filterList, attemptCount:0){eror in
-                                self.showErrorAlert(title: "エラー", message: "買いたいリストが見つかりませんデイsた", buttonTitle: "OK")
-                            }
+                        filterList = self.items.filter{ item in
+                            basicUser.wishList.contains(item.id)
+                        }
+            
+                        self.focusOnFavorite(favoriteList: filterList, attemptCount:0){eror in
+                            self.showErrorAlert(title: "エラー", message: "買いたいリストが見つかりませんでした", buttonTitle: "OK")
                         }
                     }
                 }
@@ -215,7 +239,11 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         moveToUserLocation()
     }
     
-    func filterAnnotations<T: Annotatable>(list: [T]) -> [T] {
+    
+    /// 視覚表示領域のアノテーションのみを配列形式で返す
+    /// - Parameter list: <#list description#>
+    /// - Returns: 指定した型のアノテーション配列
+    func annotationsInVisibleRegion<T: Annotatable>(list: [T]) -> [T] {
         return list.filter { element in
             let coordinate = CLLocationCoordinate2D(latitude: element.coordinate.latitude, longitude: element.coordinate.longitude)
             let point = MKMapPoint(coordinate)
@@ -232,8 +260,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             return
         }
 
-        let filteredItems = filterAnnotations(list: favoriteList)
-        let filteredEvents = filterAnnotations(list: events)
+        let filteredItems = annotationsInVisibleRegion(list: favoriteList)
 
         if filteredItems.isEmpty {
             zoomOutMap(scale: 1.5)
@@ -241,8 +268,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
                 self.focusOnFavorite(favoriteList: favoriteList, attemptCount: attemptCount + 1, onError: onError)
             }
         } else {
-            replaceAnnotations(to: filteredItems) { ItemAnnotation(item: $0) }
-            replaceAnnotations(to: filteredEvents) { EventAnnotation(event: $0) }
+            setAnnotationsForMode(items: filteredItems, events: events)
         }
     }
 
@@ -257,6 +283,14 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         mapView.setRegion(newRegion, animated: true)
     }
     
+    
+    /// マップ内のイベント・アイテム情報のみ表示する。
+    /// また、地図上にアノテーションがなければ、再帰呼び出しでマップを縮小してマップのエリアを広げて再度表示する。
+    /// - Parameters:
+    ///   - key: Item情報におけるフィルタリングのキー情報
+    ///   - attemptCount: 呼び出しの初期値を設定 0にすれば10回再起呼び出歯を行う
+    ///   - filterHandler:
+    ///   - onError:
     func focusOn<T: Equatable>(
         filterBy key: T,
         attemptCount: Int = 10,
@@ -269,21 +303,10 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             onError?("買いたいリストに入れたアイテムは見つかりませんでした")
             return
         }
-        // 現在表示中の地図領域を取得
-        let visibleMapRect = mapView.visibleMapRect
 
         // アイテムをフィルタリング
-        let filteredItems = items.filter { item in
-            let coordinate = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
-            let point = MKMapPoint(coordinate)
-            return visibleMapRect.contains(point) && filterHandler(item, key)
-        }
-
-        // イベントをフィルタリング
-        let filteredEvents = events.filter { event in
-            let coordinate = CLLocationCoordinate2D(latitude: event.coordinate.latitude, longitude: event.coordinate.longitude)
-            let point = MKMapPoint(coordinate)
-            return visibleMapRect.contains(point)
+        let filteredItems = annotationsInVisibleRegion(list: items).filter { item in
+            return filterHandler(item,key)
         }
 
         if filteredItems.isEmpty {
@@ -292,26 +315,13 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
                 self.focusOn(filterBy: key, attemptCount: attemptCount + 1, filterHandler: filterHandler, onError: onError)
             }
         } else {
-            replaceAnnotations(to: filteredItems) { ItemAnnotation(item: $0) }
-            replaceAnnotations(to: filteredEvents) { EventAnnotation(event: $0) }
-        }
-        // マップ上のアノテーションを更新
-        replaceAnnotations(to: filteredItems) { item in
-            return ItemAnnotation(item: item)
-        }
-        replaceAnnotations(to: filteredEvents) { event in
-            return EventAnnotation(event: event)
+            setAnnotationsForMode(items: filteredItems, events: events)
         }
     }
 //    MARK: 検索処理
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         if searchText.isEmpty {
-            replaceAnnotations(to: items){ item in
-                return ItemAnnotation(item: item)
-            }
-            replaceAnnotations(to: events){ event in
-                return EventAnnotation(event: event)
-            }
+            setAnnotationsForMode(items: items, events: events)
             return
         } else {
             searchLocation(searchText)
@@ -376,14 +386,14 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
     
     /// グループIDを指定してマップ上にアノテーションを載せて表示する
     /// - Parameter groupID: 指定するグループID
-    func navigateToMap(groupID: String){
-        ItemPersistenceManager().loadItems { items in
-            let filteredByGroupID = ItemSearchManager(items: items).items(where: { $0.groupId == groupID })
-            self.replaceAnnotations(to: filteredByGroupID){ item in
-                return ItemAnnotation(item: item)
-            }
-        }
-    }
+//    func navigateToMap(groupID: String){
+//        ItemPersistenceManager().loadItems { items in
+//            let filteredByGroupID = ItemSearchManager(items: items).items(where: { $0.groupId == groupID })
+//            self.replaceAnnotations(to: filteredByGroupID){ item in
+//                return ItemAnnotation(item: item)
+//            }
+//        }
+//    }
     
     @IBAction func toGroupLoginView(_ sender: Any) {
         showGroupLoginView()
@@ -447,12 +457,32 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         self.removeAnnotations(ofType: TemporaryAnnotation.self)
     }
 
-    func replaceAnnotations<T: Annotatable, A: MKAnnotation>(to items: [T], createAnnotation: (T) -> A) {
-        removeAnnotations(ofType: A.self)
-        for item in items {
-            let annotation = createAnnotation(item)
-            mapView.addAnnotation(annotation)
+    func replaceAnnotations<T: Annotatable, A: MKPointAnnotation>(to list: [T], createAnnotation: (T) -> A) {
+        let visibleRegion = mapView.visibleMapRect
+        var newAnnotations:Set<A> = []
+        
+        
+        for element in list {
+            let annotation = createAnnotation(element)
+            
+            if visibleRegion.contains(MKMapPoint(CLLocationCoordinate2D(latitude: annotation.coordinate.latitude, longitude: annotation.coordinate.longitude))){
+                newAnnotations.insert(annotation)
+            }
         }
+        // 現在のアノテーションをセットに変換
+        let currentAnnotations = Set(mapView.annotations.compactMap { $0 as? A })
+        
+        // 追加するアノテーションの差分（新しく追加するべきもの）
+        let annotationsToAdd = newAnnotations.subtracting(currentAnnotations)
+        
+        // 削除するアノテーションの差分（削除すべきもの）
+        let annotationsToRemove = currentAnnotations.subtracting(newAnnotations)
+        
+        // アノテーションの削除
+        mapView.removeAnnotations(Array(annotationsToRemove) as [any MKAnnotation])
+        
+        // アノテーションの追加
+        mapView.addAnnotations(Array(annotationsToAdd) as [any MKAnnotation])
     }
 
     func removeAnnotations<AnnotationType: MKAnnotation>(ofType annotationType: AnnotationType.Type) {
@@ -499,8 +529,14 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         let alert = UIAlertController(title: "新規作成",
                 message: "この位置に情報を登録しますか？",
                 preferredStyle: .alert)
-        alert.addAction(itemAction)
-        alert.addAction(eventAction)
+        switch contentMode {
+        case .itemMode:
+            alert.addAction(itemAction)
+        case .eventMode:
+            alert.addAction(eventAction)
+        case .catMode:
+            alert.addAction(eventAction)
+        }
         alert.addAction(cancelAction)
                
         self.present(alert, animated: true)
@@ -521,107 +557,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             navigationController?.pushViewController(hostingController, animated: true)
         }
     }
-}
-// MARK: マップ挙動・アノテーション関連の処理
-extension HomeViewController :MKMapViewDelegate {
-    func moveToUserLocation() {
-        guard let userLocation = mapView.userLocation.location else {
-            print("現在地が取得できません")
-            return
-        }
-        
-        let region = MKCoordinateRegion(
-            center: userLocation.coordinate,
-            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-        )
-        mapView.setRegion(region, animated: true)
-    }
-    
-    // 位置情報が更新されたときに呼び出される
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let userLocation = locations.last else { return }
-        currentLocation = userLocation
-    }
-    
-    // 位置情報取得に失敗した場合
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // エラー内容をログ出力
-        print("位置情報取得失敗: \(error.localizedDescription)")
-        
-        // エラー内容を元にアラートを表示
-        let alertMessage: String
-        if (error as NSError).code == CLError.denied.rawValue {
-            alertMessage = "位置情報の使用が拒否されています。設定を確認してください。"
-        } else {
-            alertMessage = "位置情報の取得に失敗しました。"
-        }
-        
-        let alert = UIAlertController(title: "エラー", message: alertMessage, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        DispatchQueue.main.async {
-            self.present(alert, animated: true)
-        }
-        
-        // 必要に応じて、地図を初期位置に戻す
-        guard let currentLocation = currentLocation else { return  }
-        let defaultCoordinate = CLLocationCoordinate2D(latitude: currentLocation.coordinate.latitude, longitude: currentLocation.coordinate.longitude) // 東京をデフォルト位置とする例
-        mapView.setCenter(defaultCoordinate, animated: true)
-    }
-    
-    func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-        // 新しい範囲に基づいてアノテーションを再表示
-        let visibleRegion = mapView.visibleMapRect
-        // 全てのアノテーションを取得
-        var allAnnotations: [MKPointAnnotation] = []
-
-        // ItemAnnotationsとEventAnnotationsをまとめて処理
-        allAnnotations.append(contentsOf: items.map { ItemAnnotation(item: $0) })
-        allAnnotations.append(contentsOf: events.map { EventAnnotation(event: $0) })
-        
-        let visibleAnnotations = allAnnotations.filter { annotation in
-            return visibleRegion.contains(MKMapPoint(annotation.coordinate))
-        }
-        mapView.removeAnnotations(mapView.annotations)
-        mapView.addAnnotations(visibleAnnotations)
-    }
-
-    
-    /// マップスクロール時に現在地の自動追尾を停止する
-    /// - Parameters:
-    ///   - mapView: 表示しているmapView
-    ///   - animated: animated description
-    func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
-        mapView.setUserTrackingMode(.none, animated: false)
-    }
-    
-    @objc func handleLongPress(_ gestureRecognizer: UILongPressGestureRecognizer) {
-        guard gestureRecognizer.state == .began else { return }
-        let location = gestureRecognizer.location(in: mapView)
-        let coordinate = mapView.convert(location, toCoordinateFrom: mapView)
-        let region = mapView.region
-        // 一時的なアノテーションを追加
-        let annotation = TemporaryAnnotation()
-        annotation.coordinate = coordinate
-        annotation.title = "新規作成ポイント"
-        mapView.addAnnotation(annotation)
-
-        // ダイアログを表示
-        selectRegistrationType(coordinate:coordinate, region: mapView.region)
-    }
-
-    // 吹き出しのアクセサリ（詳細ボタンなど）をタップしたとき
-    func mapView(_ mapView: MKMapView, annotationView view: MKAnnotationView, calloutAccessoryControlTapped control: UIControl) {
-        // ItemAnnotation の場合
-        if let itemAnnotation = view.annotation as? ItemAnnotation {
-            showItemDetail(for: itemAnnotation.item)
-        }
-        // EventAnnotation の場合
-        else if let eventAnnotation = view.annotation as? EventAnnotation {
-            showEventDetail(for: eventAnnotation.event)
-        }
-    }
-    
-    
     /// 編集のためにアイテム登録画面を開く
     /// - Parameter item: アイテム詳細画面で保持しているitem情報を渡す
     func showItemRegistrationViewForEdit(item:Item){
@@ -676,6 +611,91 @@ extension HomeViewController :MKMapViewDelegate {
         }
         
         present(hostingController, animated: true, completion: nil)
+    }
+}
+// MARK: マップ挙動・アノテーション関連の処理
+extension HomeViewController :MKMapViewDelegate {
+    func moveToUserLocation() {
+        guard let userLocation = mapView.userLocation.location else {
+            print("現在地が取得できません")
+            return
+        }
+        
+        let region = MKCoordinateRegion(
+            center: userLocation.coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+        )
+        mapView.setRegion(region, animated: true)
+    }
+    
+    // 位置情報が更新されたときに呼び出される
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let userLocation = locations.last else { return }
+        currentLocation = userLocation
+    }
+    
+    // 位置情報取得に失敗した場合
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        // エラー内容をログ出力
+        print("位置情報取得失敗: \(error.localizedDescription)")
+        
+        // エラー内容を元にアラートを表示
+        let alertMessage: String
+        if (error as NSError).code == CLError.denied.rawValue {
+            alertMessage = "位置情報の使用が拒否されています。設定を確認してください。"
+        } else {
+            alertMessage = "位置情報の取得に失敗しました。"
+        }
+        
+        let alert = UIAlertController(title: "エラー", message: alertMessage, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        DispatchQueue.main.async {
+            self.present(alert, animated: true)
+        }
+        
+        // 必要に応じて、地図を初期位置に戻す
+        guard let currentLocation = currentLocation else { return  }
+        let defaultCoordinate = CLLocationCoordinate2D(latitude: currentLocation.coordinate.latitude, longitude: currentLocation.coordinate.longitude) // 東京をデフォルト位置とする例
+        mapView.setCenter(defaultCoordinate, animated: true)
+    }
+    
+    func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+        setAnnotationsForMode(items: items, events: events)
+    }
+       
+    /// マップスクロール時に現在地の自動追尾を停止する
+    /// - Parameters:
+    ///   - mapView: 表示しているmapView
+    ///   - animated: animated description
+    func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
+        mapView.setUserTrackingMode(.none, animated: false)
+    }
+    
+    @objc func handleLongPress(_ gestureRecognizer: UILongPressGestureRecognizer) {
+        guard gestureRecognizer.state == .began else { return }
+        let location = gestureRecognizer.location(in: mapView)
+        let coordinate = mapView.convert(location, toCoordinateFrom: mapView)
+        let region = mapView.region
+        // 一時的なアノテーションを追加
+        let annotation = TemporaryAnnotation()
+        annotation.coordinate = coordinate
+        annotation.title = "新規作成ポイント"
+        mapView.addAnnotation(annotation)
+
+        // ダイアログを表示
+        selectRegistrationType(coordinate:coordinate, region: mapView.region)
+    }
+
+    // 吹き出しのアクセサリ（詳細ボタンなど）をタップしたとき
+    func mapView(_ mapView: MKMapView, annotationView view: MKAnnotationView, calloutAccessoryControlTapped control: UIControl) {
+        // ItemAnnotation の場合
+        if let itemAnnotation = view.annotation as? ItemAnnotation {
+            showItemDetail(for: itemAnnotation.item)
+        }
+        // EventAnnotation の場合
+        else if let eventAnnotation = view.annotation as? EventAnnotation {
+            showEventDetail(for: eventAnnotation.event)
+        }
     }
     
     func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {

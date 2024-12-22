@@ -10,7 +10,6 @@ import MapKit
 import CoreLocation
 import SwiftUI
 
-
 class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency CLLocationManagerDelegate, UIActionSheetDelegate {
     @IBOutlet weak var mapView: MKMapView!
     var currentLocation:CLLocation?
@@ -369,7 +368,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
                 case .failure(let error):
                     print("error: \(error)")
                     // ログイン画面を表示
-                    self.showUserLoginButton()
+                    self.showUserLoginView()
                 }
             })
         }
@@ -387,7 +386,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
     }
     
     @IBAction func toGroupLoginView(_ sender: Any) {
-        showRegistrationButton()
+        showGroupLoginView()
     }
 //    MARK: 登録処理
     // 登録されたアイテムを処理するメソッド
@@ -398,10 +397,17 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
                 //戻る
                 self.navigationController?.popViewController(animated: true)
                 
-                self.showAlertWithAction(title:"確認", message:"登録した場所に移動しますか？"){ action in
-                    let location = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
-                    self.mapView.setCenter(location, animated: true)
-                }
+                
+                self.showAlertWithAction(title:"確認",
+                                         message:"登録した場所に移動しますか？",
+                                         actionHandler:{ action in
+                                            let location = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
+                                            self.mapView.setCenter(location, animated: true)
+                                            }
+                                         ,cancelActionHandler:{ cancelAction in
+                    
+                                            }
+                                        )
                 
                 ItemPersistenceManager().loadItems(completion: { items in
                     self.items = items
@@ -455,7 +461,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
     }
     
 //    MARK: 画面遷移
-    func showRegistrationButton() {
+    func showGroupLoginView() {
         // 新しいStoryboardをインスタンス化
         let storyboard = UIStoryboard(name: "GroupLoginView", bundle: nil)
         
@@ -466,7 +472,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         }
     }
     
-    func showUserLoginButton() {
+    func showUserLoginView() {
         //SwiftUI画面に遷移する UserLoginView
         let userLoginView = UserLoginView(onLogin: { [weak self] email in
              print("Login したのは\(email)ユーザー")
@@ -476,14 +482,14 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         navigationController?.pushViewController(hostingController, animated: true)
     }
     
-    func selectRegistrationType(coordinate:CLLocationCoordinate2D){
+    func selectRegistrationType(coordinate:CLLocationCoordinate2D, region:MKCoordinateRegion){
         let itemAction = UIAlertAction(title: "アイテム登録",
                              style: .default) { (action) in
-            self.showRegistrationViewFromAnnotation(isItem: true, coordinate: coordinate)
+            self.presentRegistrationView(isItem: true, coordinate: coordinate, region:region)
         }
         let eventAction = UIAlertAction(title: "イベント登録",
                              style: .default) { (action) in
-            self.showRegistrationViewFromAnnotation(isItem: false, coordinate: coordinate)
+            self.presentRegistrationView(isItem: false, coordinate: coordinate,region: region)
         }
         let cancelAction = UIAlertAction(title: "キャンセル",
                              style: .cancel) { (action) in
@@ -500,18 +506,18 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         self.present(alert, animated: true)
     }
     
-    func showRegistrationViewFromAnnotation(isItem:Bool, coordinate:CLLocationCoordinate2D) {
+    func presentRegistrationView(isItem:Bool, coordinate:CLLocationCoordinate2D,region:MKCoordinateRegion) {
         if isItem {
-            let itemRegistrationView = ItemRegistrationView(coordinate: coordinate, onRegister: { [weak self] item in
+            let itemRegistrationView = ItemRegistrationView(coordinate: coordinate, region: region,onRegister: { [weak self] item in
                 self?.handleItemRegistration(item: item)
             })
             let hostingController = UIHostingController(rootView: itemRegistrationView)
             navigationController?.pushViewController(hostingController, animated: true)
         } else {
-            let shoppingItemView = EventRegistrationView(coordinate: coordinate, onRegister: { [weak self] event, image in
+            let eventRegistrationView = EventRegistrationView(coordinate: coordinate, onRegister: { [weak self] event, image in
                 self?.handleEventRegistration(event: event, image: image!)
             })
-            let hostingController = UIHostingController(rootView: shoppingItemView)
+            let hostingController = UIHostingController(rootView: eventRegistrationView)
             navigationController?.pushViewController(hostingController, animated: true)
         }
     }
@@ -592,6 +598,7 @@ extension HomeViewController :MKMapViewDelegate {
         guard gestureRecognizer.state == .began else { return }
         let location = gestureRecognizer.location(in: mapView)
         let coordinate = mapView.convert(location, toCoordinateFrom: mapView)
+        let region = mapView.region
         // 一時的なアノテーションを追加
         let annotation = TemporaryAnnotation()
         annotation.coordinate = coordinate
@@ -599,7 +606,7 @@ extension HomeViewController :MKMapViewDelegate {
         mapView.addAnnotation(annotation)
 
         // ダイアログを表示
-        selectRegistrationType(coordinate:coordinate)
+        selectRegistrationType(coordinate:coordinate, region: mapView.region)
     }
 
     // 吹き出しのアクセサリ（詳細ボタンなど）をタップしたとき
@@ -615,11 +622,27 @@ extension HomeViewController :MKMapViewDelegate {
     }
     
     
-    /// アイテム登録画面を表示する
-    /// - Parameter item: Item型に位置情報をセットして引数として渡す
+    /// 編集のためにアイテム登録画面を開く
+    /// - Parameter item: アイテム詳細画面で保持しているitem情報を渡す
+    func showItemRegistrationViewForEdit(item:Item){
+        let coordinate:CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
+        
+        let itemRegistrationView = ItemRegistrationView(item: item, coordinate: coordinate, region: self.mapView.region, onRegister: { [weak self] item in
+            self?.handleItemRegistration(item: item)
+        })
+        let hostingController = UIHostingController(rootView: itemRegistrationView)
+        navigationController?.pushViewController(hostingController, animated: true)
+    }
+    
+    /// アイテム詳細画面を表示する
+    /// - Parameter item: アノテーションに含まれるitem情報を渡す
     private func showItemDetail(for item: Item) {
         // SwiftUIのビューを作成
-        let itemDetailView = ItemDetailView(isPresented: .constant(true), item: item, isEditEnabled: false)
+        let itemDetailView = ItemDetailView(isPresented: .constant(true), item: item, isEditEnabled: false, onEdit: { [weak self] item in
+            self?.showItemRegistrationViewForEdit(item: item)
+            
+        })
+        
         let hostingController = UIHostingController(rootView: itemDetailView)
         
         // モーダルのスタイル設定

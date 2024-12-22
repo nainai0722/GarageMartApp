@@ -12,9 +12,10 @@ struct ItemDetailView: View {
     var item: Item!
     @State var count : Int = 0
     @State var isEditEnabled:Bool
-    @State private var isButtonDisabled: Bool = true // ボタンの無効化状態を管理
+    @State private var isButtonDisabled: Bool = false // ボタンの無効化状態を管理
     @State private var scrollOffset: CGFloat = 0.0
-    
+    @Environment(\.dismiss) private var dismiss
+    let onEdit: (Item) -> Void
     var body: some View {
         ScrollView {
             VStack(alignment: .leading) {
@@ -34,12 +35,17 @@ struct ItemDetailView: View {
                     .padding([.horizontal, .bottom])
                 
                 HStack {
+                    
+                    Text("カテゴリー")
+                        .font(.body)
                     Text(item.category.rawValue)
                         .font(.body)
                         .padding(8) // 同じく内側の余白
                         .background(Color(.lightGray))
                         .cornerRadius(10)
                         .shadow(radius: 5,x: 5 ,y: 5)
+                    Text("在庫状況")
+                        .font(.body)
                     Text(item.stockCategory.rawValue)
                         .font(.body)
                         .padding(8) // 同じく内側の余白
@@ -59,7 +65,6 @@ struct ItemDetailView: View {
                     Text(isButtonDisabled ? "買いたい済" : "買いたい")
                 }
                 .buttonStyle(CustomButtonStyle(isDisabled: isButtonDisabled))
-                .disabled(isButtonDisabled)
                 .padding(.horizontal)
                 
                 Text("買いたい人が\(count)人います")
@@ -68,12 +73,17 @@ struct ItemDetailView: View {
             
                 if isEditEnabled {
                     Button(action:{
-                        // 編集画面に行く
+                        // このモーダルビュー閉じる
+                        dismiss()
+                        onEdit(item)
+                        //　itemを渡しつつItem登録画面を表示する
+                        
+                        
                     }){
                         Text("編集する")
                             .background(Color(.blue))
                     }
-                    .buttonStyle(CustomButtonStyle(isDisabled: isButtonDisabled))
+                    .buttonStyle(CustomButtonStyle(isDisabled: false))
                     .padding(.horizontal)
                 }
             }
@@ -111,7 +121,7 @@ struct ItemDetailView: View {
     
     private func checkIsCounted() {
         guard let userId = LoginManager.shared.getUserID() else {
-            isButtonDisabled = true
+            isButtonDisabled = false
             return
         }
 
@@ -146,7 +156,7 @@ struct ItemDetailView: View {
                     let basicUser = BasicUser(userId: userId, userName: "無名ユーザー", wishList: [item.id])
                     BasicUserPersistenceManager().save(basicUser: basicUser)
                     count += 1
-                    isButtonDisabled = false
+                    isButtonDisabled = true
                 }else {
                     if var currentBasicUser = currentBasicUser {
                         currentBasicUser.wishList.append(item.id)
@@ -154,7 +164,7 @@ struct ItemDetailView: View {
                         // 更新された currentBasicUser を保存
                         BasicUserPersistenceManager().update(basicUser:currentBasicUser)
                         count += 1
-                        isButtonDisabled = false
+                        isButtonDisabled = true
                     }
                 }
             }
@@ -202,8 +212,10 @@ struct ItemImageView: View {
 struct sameUserItemsHorizontalScrollView: View {
     var item: Item!
     @State private var filteredItems: [Item] = [] // 非同期で取得したデータを保持する
+    @State private var userName: String = ""
     var body: some View {
-        Text("\(item.userId)さんは他にもアイテムを登録しています")
+        
+        Text("\(userName)さんは他にもアイテムを登録しています")
         ScrollView(.horizontal) {
             LazyHStack {
                 ForEach(filteredItems, id: \.id) { filteredItem in
@@ -218,6 +230,7 @@ struct sameUserItemsHorizontalScrollView: View {
         }
         .onAppear {
             loadFilteredItems(for: item)
+            fetchUserName()
         }
     }
     private func loadFilteredItems(for item:Item){
@@ -227,6 +240,16 @@ struct sameUserItemsHorizontalScrollView: View {
                 self.filteredItems = items.filter{ $0.userId == item.userId }
             }
             
+        }
+    }
+    private func fetchUserName(){
+        let basicUserPersistenceManager = BasicUserPersistenceManager()
+        basicUserPersistenceManager.loadBasicUsers{ basicUsers in
+            for basicUser in basicUsers {
+                if item.userId == basicUser.userId {
+                    userName = basicUser.userName
+                }
+            }
         }
     }
 }
@@ -246,5 +269,8 @@ struct ItemCardView: View {
     @Previewable @State var isPresented = false
     let item = Item(id: "12345", name: "テスト", price: 1000, category: ItemCategory.toy, coordinate: Coordinate(latitude: 0, longitude: 0), stock: 1, stockCategory: StockCategory.few,userId: "testUser", imageData:UIImage(named: "ventilation_color")!.pngData()!) // 仮のItemを作成
     
-    ItemDetailView(isPresented: $isPresented, item: item, isEditEnabled: false)
+    ItemDetailView(isPresented: $isPresented, item: item, isEditEnabled: false, onEdit:{ item in
+        print("Preview ItemDetailView")
+        print("Item name: \(item.name), Category: \(item.category)")
+    })
 }

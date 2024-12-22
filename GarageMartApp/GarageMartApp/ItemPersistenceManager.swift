@@ -30,7 +30,8 @@ class ItemPersistenceManager {
             completion(.failure(ImageError.notFoundImageData))
             return
         }
-
+        
+        
         // 1. 画像データをアップロード
         uploadImage(imageData) { result in
             switch result {
@@ -39,7 +40,7 @@ class ItemPersistenceManager {
                 let itemData = item.toDictionary(url: url)
                 
                 // 3. Firebase Realtime Databaseに保存
-                databaseRef.child(storageKey).childByAutoId().setValue(itemData) { error, ref in
+                databaseRef.child(storageKey).child(item.id).setValue(itemData) { error, ref in
                     if let error = error {
                         print("Error saving item: \(error.localizedDescription)")
                         completion(.failure(error))

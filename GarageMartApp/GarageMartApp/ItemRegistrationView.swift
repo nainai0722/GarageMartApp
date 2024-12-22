@@ -16,6 +16,7 @@ import Photos
 
 
 struct ItemRegistrationView: View {
+    @State var item:Item?
     @State var coordinate: CLLocationCoordinate2D
     @State private var selectedImage: UIImage? = nil
     @State var gpsCoordinates: CLLocationCoordinate2D?
@@ -35,6 +36,7 @@ struct ItemRegistrationView: View {
     @State private var itemQuantity: String = ""
     @State private var selectedStock: StockCategory = .only
     @State private var selectedCategory: ItemCategory = .food
+    @State private var registerButtonText:String = ""
     @State private var annotations: [AnnotatedLocation] = [
         AnnotatedLocation(coordinate: CLLocationCoordinate2D(latitude: 35.6895, longitude: 139.6917))
     ]
@@ -126,7 +128,6 @@ struct ItemRegistrationView: View {
                                 )
                             }
                     }
-
                     Text("アイテム登録")
                         .font(.headline)
                     
@@ -153,11 +154,16 @@ struct ItemRegistrationView: View {
                         guard let selectedImage = selectedImage else { return }
                         guard let userId = LoginManager.shared.getUserID() else { return }
                         guard let intPrice = Int(itemPrice), let intQuantity = Int(itemQuantity),let resizedImage = resizeImageToHeight(image: selectedImage, targetHeight: 1024) ,let imageData = resizedImage.jpegData(compressionQuality: 0.7) else { return }
-                        let inputItem = Item(id: UUID().uuidString, name: itemName, description: itemDescription, price: intPrice, category:selectedCategory, coordinate: Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude), stock: intQuantity, stockCategory:selectedStock ,userId:userId, imageData:imageData)
+                        if let item = item {
+                            let updateItem = Item(id: item.id, name: itemName, description: itemDescription, price: intPrice, category:selectedCategory, coordinate: Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude), stock: intQuantity, stockCategory:selectedStock ,userId:userId, imageData:imageData)
+                            onRegister(updateItem)
+                        } else {
+                            let inputItem = Item(id: UUID().uuidString, name: itemName, description: itemDescription, price: intPrice, category:selectedCategory, coordinate: Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude), stock: intQuantity, stockCategory:selectedStock ,userId:userId, imageData:imageData)
+                            onRegister(inputItem)
+                        }
                         
-                        onRegister(inputItem)
                     }) {
-                        Text("アイテムを登録する")
+                        Text(registerButtonText)
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color.blue)
@@ -178,8 +184,34 @@ struct ItemRegistrationView: View {
         }
         .onAppear(){
             annotations = [AnnotatedLocation(coordinate: coordinate)]
+            if let item = item {
+                itemName = item.name
+                itemDescription = item.description
+                itemPrice = String(item.price)
+                selectedStock = item.stockCategory
+                selectedCategory = item.category
+                itemQuantity = String(item.stock)
+                fetchImage(item:item)
+                registerButtonText = "アイテムを更新する"
+            } else {
+                registerButtonText = "アイテムを登録する"
+            }
         }
     }
+    
+    private func fetchImage(item: Item) {
+        ItemPersistenceManager().fetchImage(from: item) { result in
+            switch result {
+            case .success(let image):
+                DispatchQueue.main.async {
+                    self.selectedImage = image
+                }
+            case .failure(let error):
+                print("Error fetching image: \(error)")
+            }
+        }
+    }
+    
     // 入力がすべて有効か判定
     private func isFormValid() -> Bool {
         return !itemName.isEmpty && !itemDescription.isEmpty && !itemPrice.isEmpty &&  !itemQuantity.isEmpty && selectedImage != nil

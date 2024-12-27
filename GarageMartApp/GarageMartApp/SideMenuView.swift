@@ -9,27 +9,23 @@ import SwiftUI
 
 struct SideMenuView: View {
     let onSelectMode: (ContentMode) -> Void
-    @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack {
             
             Button(action: {
                 onSelectMode(ContentMode.itemMode)
-                dismiss()
             }) {
                 Text("アイテムマップ")
             }
             Divider()
             Button(action: {
                 onSelectMode(ContentMode.eventMode)
-                dismiss()
             }){
                 Text("イベントマップ")
             }
             Divider()
             Button(action: {
                 onSelectMode(ContentMode.catMode)
-                dismiss()
             }){
                 Text("地域猫マップ")
             }

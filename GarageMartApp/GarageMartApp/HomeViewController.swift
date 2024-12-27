@@ -103,11 +103,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         mapView.showsUserLocation = true
         
         setupKeyboardDismissTapGesture()
-        
-        // スワイプジェスチャーの設定
-//        let swipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
-//        swipeGesture.direction = .right
-//        self.view.addGestureRecognizer(swipeGesture)
     }
     
     // メニュー表示用のメソッド
@@ -137,6 +132,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
     private func showSideMenu() {
             // SideMenuViewのSwiftUIビューをUIHostingControllerに変換
         let sideMenuView = SideMenuView(onSelectMode: {[weak self] contentMode in
+            self?.hideSideMenu()
             self?.contentMode = contentMode
             self?.setAnnotationsForMode(items: self?.viewModel.items ?? [], events: self!.events)
         })
@@ -174,13 +170,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             self.menuIsVisible = false
         }
     }
-    
-//    @objc func handleSwipe(_ gesture: UISwipeGestureRecognizer) {
-//        if !menuIsVisible {
-//            // メニューを表示
-//            showSideMenu()
-//        }
-//    }
     
     @objc private func dismissKeyboard() {
         view.endEditing(true)

@@ -9,6 +9,8 @@ import UIKit
 import MapKit
 import CoreLocation
 import SwiftUI
+import Firebase
+import Combine
 
 enum ContentMode {
     case itemMode
@@ -18,12 +20,16 @@ enum ContentMode {
 
 class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency CLLocationManagerDelegate, UIActionSheetDelegate {
     @IBOutlet weak var mapView: MKMapView!
+
+    private var viewModel = HomeViewModel()
+    private var cancellables: Set<AnyCancellable> = []
+    
     var currentLocation:CLLocation?
     let searchBar = UISearchBar()
     private var categories: [ItemCategory] = ItemCategory.allCases
     private var stocks: [StockCategory] = StockCategory.allCases
     private var favorites: [Favorite] = Favorite.allCases
-    private var filterElement: (any Categorable)?
+//    private var filterElement: (any Categorable)?
     private var favoriteList:[Item] = []
     private lazy var scrollView: UIScrollView = {
         let scrollView = UIScrollView()
@@ -41,9 +47,9 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         return stackView
     }()
     let locationManager = CLLocationManager()
-    var items:[Item] = []
+//    var items:[Item] = []
     var events:[Event] = []
-    private var isItemDetailPresented = false
+    var cats:[Cat] = []
     private var hostingController: UIHostingController<SideMenuView>?
     private var menuIsVisible = false
         
@@ -71,6 +77,14 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         mapView.addGestureRecognizer(longPressRecognizer)
         
         mapView?.delegate = self
+        
+        viewModel.$items
+                    .sink { [weak self] items in
+                        // アイテムが更新されたら、アノテーションを更新
+                        self?.replaceAnnotations(to: items, createAnnotation: { ItemAnnotation(item: $0) })
+                    }
+                    .store(in: &cancellables)
+        
         // デバッグ用のグループ情報を設定する
         checkDebugUserGroup()
         checkLoginState()
@@ -90,16 +104,10 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         
         setupKeyboardDismissTapGesture()
         
-        ItemPersistenceManager().loadItems { items in
-            self.items = items
-            self.focusOn(filterBy: ItemCategory.all) { item, category in
-                return true // 全カテゴリを含む場合
-            }
-        }
         // スワイプジェスチャーの設定
-        let swipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
-        swipeGesture.direction = .right
-        self.view.addGestureRecognizer(swipeGesture)
+//        let swipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
+//        swipeGesture.direction = .right
+//        self.view.addGestureRecognizer(swipeGesture)
     }
     
     // メニュー表示用のメソッド
@@ -117,12 +125,12 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         switch contentMode {
         case .itemMode:
                //アノテーションをアイテムだけにする
-                replaceAnnotations(to: items, createAnnotation: {ItemAnnotation(item: $0)})
+            replaceAnnotations(to: items, createAnnotation: {ItemAnnotation(item: $0)})
         case .eventMode:
                //アノテーションをイベントだけにする
-               replaceAnnotations(to: events, createAnnotation: {EventAnnotation(event: $0)})
-        default:
-               break
+            replaceAnnotations(to: events, createAnnotation: {EventAnnotation(event: $0)})
+        case .catMode:
+            replaceAnnotations(to: cats, createAnnotation: {CatAnnotation(cat: $0)})
         }
     }
     
@@ -130,7 +138,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             // SideMenuViewのSwiftUIビューをUIHostingControllerに変換
         let sideMenuView = SideMenuView(onSelectMode: {[weak self] contentMode in
             self?.contentMode = contentMode
-            self?.setAnnotationsForMode(items: self?.items ?? [], events: self!.events)
+            self?.setAnnotationsForMode(items: self?.viewModel.items ?? [], events: self!.events)
         })
             hostingController = UIHostingController(rootView: sideMenuView)
             
@@ -167,12 +175,12 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         }
     }
     
-    @objc func handleSwipe(_ gesture: UISwipeGestureRecognizer) {
-        if !menuIsVisible {
-            // メニューを表示
-            showSideMenu()
-        }
-    }
+//    @objc func handleSwipe(_ gesture: UISwipeGestureRecognizer) {
+//        if !menuIsVisible {
+//            // メニューを表示
+//            showSideMenu()
+//        }
+//    }
     
     @objc private func dismissKeyboard() {
         view.endEditing(true)
@@ -183,17 +191,9 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             let category = categories[sender.tag]
             print("\(category.rawValue) ボタンがタップされました！")
             
-            focusOn(filterBy: category, attemptCount: 0) { item, category in
-                if category == .all {
-                    return true // 全カテゴリを含む場合
-                } else {
-                    return item.category == category
-                }
-            } onError: { error in
+            focusOnFilteredItems(items: category == .all ? viewModel.items : viewModel.items.filter{ $0.category == category }){ error in
                 self.showErrorAlert(message: error)
             }
-
-
         } else {
             print("Invalid tag, out of bounds")
         }
@@ -203,9 +203,8 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         if sender.tag < stocks.count {
             let stock = stocks[sender.tag]
             print("\(stock.rawValue) ボタンがタップされました！")
-            focusOn(filterBy:stock) { item, stockCategory in
-                return item.stockCategory == stockCategory
-            }
+            let filteredItems = viewModel.items.filter{ $0.stockCategory == stock }
+            focusOnFilteredItems(items: filteredItems)
 
         } else {
             print("Invalid tag, out of bounds")
@@ -216,29 +215,23 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         if sender.tag < favorites.count {
             let favorite = favorites[sender.tag]
             print("\(favorite.rawValue) ボタンがタップされました！")
-            var filterList:[Item] = []
+            
             let userId = LoginManager.shared.getUserID()
             BasicUserPersistenceManager().loadBasicUsers{ basicUsers in
-                for basicUser in basicUsers {
-                    if userId == basicUser.userId {
-                        filterList = self.items.filter{ item in
-                            basicUser.wishList.contains(item.id)
-                        }
-            
-                        self.focusOnFavorite(favoriteList: filterList, attemptCount:0){eror in
-                            self.showErrorAlert(title: "エラー", message: "買いたいリストが見つかりませんでした", buttonTitle: "OK")
-                        }
-                    }
+                guard let currentUser = basicUsers.filter({ $0.userId == userId }).first else { return }
+                let filterList = self.viewModel.items.filter{ item in
+                    currentUser.wishList.contains(item.id)
+                }
+                self.focusOnFilteredItems(items: filterList, attemptCount:0){eror in
+                    self.showErrorAlert(title: "エラー", message: "買いたいリストが見つかりませんでした", buttonTitle: "OK")
                 }
             }
         }
     }
     
-    
     @IBAction func moveToCurrentLocation(_ sender: Any) {
         moveToUserLocation()
     }
-    
     
     /// 視覚表示領域のアノテーションのみを配列形式で返す
     /// - Parameter list: <#list description#>
@@ -248,27 +241,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             let coordinate = CLLocationCoordinate2D(latitude: element.coordinate.latitude, longitude: element.coordinate.longitude)
             let point = MKMapPoint(coordinate)
             return mapView.visibleMapRect.contains(point)
-        }
-    }
-
-    
-   func focusOnFavorite(favoriteList: [Item], attemptCount: Int = 0, onError: ((String) -> Void)? = nil) {
-        let maxAttempts = 10
-        guard attemptCount < maxAttempts else {
-            print("最大試行回数に到達しました")
-            onError?("買いたいリストに入れたアイテムは見つかりませんでした")
-            return
-        }
-
-        let filteredItems = annotationsInVisibleRegion(list: favoriteList)
-
-        if filteredItems.isEmpty {
-            zoomOutMap(scale: 1.5)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.focusOnFavorite(favoriteList: favoriteList, attemptCount: attemptCount + 1, onError: onError)
-            }
-        } else {
-            setAnnotationsForMode(items: filteredItems, events: events)
         }
     }
 
@@ -283,7 +255,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         mapView.setRegion(newRegion, animated: true)
     }
     
-    
     /// マップ内のイベント・アイテム情報のみ表示する。
     /// また、地図上にアノテーションがなければ、再帰呼び出しでマップを縮小してマップのエリアを広げて再度表示する。
     /// - Parameters:
@@ -291,37 +262,32 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
     ///   - attemptCount: 呼び出しの初期値を設定 0にすれば10回再起呼び出歯を行う
     ///   - filterHandler:
     ///   - onError:
-    func focusOn<T: Equatable>(
-        filterBy key: T,
-        attemptCount: Int = 10,
-        filterHandler: @escaping (Item, T) -> Bool,
-        onError: ((String) -> Void)? = nil
-    ){
-        let maxAttempts = 10
-        guard attemptCount < maxAttempts else {
-            print("最大試行回数に到達しました")
-            onError?("買いたいリストに入れたアイテムは見つかりませんでした")
-            return
-        }
+    func focusOnFilteredItems(items: [Item],
+                         attemptCount: Int = 0,
+                         onError: ((String) -> Void)? = nil) {
+         let maxAttempts = 10
+         guard attemptCount < maxAttempts else {
+             print("最大試行回数に到達しました")
+             onError?("買いたいリストに入れたアイテムは見つかりませんでした")
+             return
+         }
 
-        // アイテムをフィルタリング
-        let filteredItems = annotationsInVisibleRegion(list: items).filter { item in
-            return filterHandler(item,key)
-        }
+         let visibleItems = annotationsInVisibleRegion(list: items)
 
-        if filteredItems.isEmpty {
-            zoomOutMap(scale: 1.5)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.focusOn(filterBy: key, attemptCount: attemptCount + 1, filterHandler: filterHandler, onError: onError)
-            }
-        } else {
-            setAnnotationsForMode(items: filteredItems, events: events)
-        }
-    }
+         if visibleItems.isEmpty {
+             zoomOutMap(scale: 1.5)
+             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                 self.focusOnFilteredItems(items: items, attemptCount: attemptCount + 1, onError: onError)
+             }
+         } else {
+             setAnnotationsForMode(items: visibleItems, events: events)
+         }
+     }
+    
 //    MARK: 検索処理
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         if searchText.isEmpty {
-            setAnnotationsForMode(items: items, events: events)
+            setAnnotationsForMode(items: viewModel.items, events: events)
             return
         } else {
             searchLocation(searchText)
@@ -349,7 +315,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             var allAnnotations: [MKPointAnnotation] = []
 
             // ItemAnnotationsとEventAnnotationsをまとめて処理
-            allAnnotations.append(contentsOf: (self?.items.map { ItemAnnotation(item: $0) })!)
+            allAnnotations.append(contentsOf: (self?.viewModel.items.map { ItemAnnotation(item: $0) })!)
             allAnnotations.append(contentsOf: (self?.events.map { EventAnnotation(event: $0) })!)
             
             // 検索結果に基づくアノテーションの追加
@@ -367,7 +333,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
 //        アクセストークンの有無で判定する
         if LoginManager.shared.checkToken(), let _ = LoginManager.shared.getUserID(){
             // マップ画面にとどまる
-            
+//            showHomeView()
         } else {
             //　トークンがなければ、再取得を実行する
             //  TODO: 処理の流れを記述しただけでトークンの成否などの詳細は未判定
@@ -384,47 +350,19 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         }
     }
     
-    /// グループIDを指定してマップ上にアノテーションを載せて表示する
-    /// - Parameter groupID: 指定するグループID
-//    func navigateToMap(groupID: String){
-//        ItemPersistenceManager().loadItems { items in
-//            let filteredByGroupID = ItemSearchManager(items: items).items(where: { $0.groupId == groupID })
-//            self.replaceAnnotations(to: filteredByGroupID){ item in
-//                return ItemAnnotation(item: item)
-//            }
-//        }
-//    }
-    
     @IBAction func toGroupLoginView(_ sender: Any) {
         showGroupLoginView()
     }
 //    MARK: 登録処理
     // 登録されたアイテムを処理するメソッド
     private func handleItemRegistration(item: Item) {
-        ItemPersistenceManager().save(item: item){ result in
+        viewModel.saveItem(item: item) { result in
             if case .success(let item) = result {
                 print("登録されたアイテム: \(item)")
                 //戻る
                 self.navigationController?.popViewController(animated: true)
-                
-                
-                self.showAlertWithAction(title:"確認",
-                                         message:"登録した場所に移動しますか？",
-                                         actionHandler:{ action in
-                                            let location = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
-                                            self.mapView.setCenter(location, animated: true)
-                                            }
-                                         ,cancelActionHandler:{ cancelAction in
-                    
-                                            }
-                                        )
-                
-                ItemPersistenceManager().loadItems(completion: { items in
-                    self.items = items
-                    self.focusOn(filterBy: ItemCategory.all) { item, category in
-                        return true // 全カテゴリを含む場合
-                    }
-                })
+                // 登録された場所へ移動するアラート
+                self.conformAlert(item:item)
             }
             if case .failure(let failure) = result {
                 print("登録失敗。 \(failure)")
@@ -432,6 +370,28 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         }
         // 一時的なアノテーションを削除
         self.removeAnnotations(ofType: TemporaryAnnotation.self)
+    }
+    
+//    MARK: 削除処理
+    // アイテムを削除する処理するメソッド
+    private func handleItemDelete(item: Item) {
+        viewModel.deleteItem(item: item)
+        navigationController?.popViewController(animated: true)
+        // 一時的なアノテーションを削除
+        self.removeAnnotations(ofType: TemporaryAnnotation.self)
+    }
+    
+    func conformAlert(item:Item) {
+        self.showAlertWithAction(title:"確認",
+                                 message:"登録した場所に移動しますか？",
+                                 actionHandler:{ action in
+                                    let location = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
+                                    self.mapView.setCenter(location, animated: true)
+                                    }
+                                 ,cancelActionHandler:{ cancelAction in
+            
+                                    }
+                                )
     }
     
     // 登録されたイベントを処理するメソッド
@@ -444,9 +404,28 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
                 
                 EventPersistenceManager().loadEvents(completion: { events in
                     self.events = events
-                    self.focusOn(filterBy: ItemCategory.all) { item, category in
-                        return true // 全カテゴリを含む場合
-                    }
+                    self.focusOnFilteredItems(items: self.viewModel.items)
+                })
+            }
+            if case .failure(let failure) = result {
+                print("イベント登録失敗。 \(failure)")
+            }
+        }
+        // 一時的なアノテーションを削除
+        self.removeAnnotations(ofType: TemporaryAnnotation.self)
+    }
+    
+    // 登録された猫情報を処理するメソッド
+    private func handleCatRegistration(cat: Cat) {
+        CatPersistenceManager().save(cat: cat){ result in
+            if case .success(let cat) = result {
+                print("登録された猫情報: \(cat)")
+                //戻る
+                self.navigationController?.popViewController(animated: true)
+                
+                CatPersistenceManager().loadCats(completion: { cats in
+                    self.cats = cats
+                    self.focusOnFilteredItems(items: self.viewModel.items)
                 })
             }
             if case .failure(let failure) = result {
@@ -460,7 +439,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
     func replaceAnnotations<T: Annotatable, A: MKPointAnnotation>(to list: [T], createAnnotation: (T) -> A) {
         let visibleRegion = mapView.visibleMapRect
         var newAnnotations:Set<A> = []
-        
         
         for element in list {
             let annotation = createAnnotation(element)
@@ -501,6 +479,13 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             self.navigationController?.pushViewController(viewController, animated: true)
         }
     }
+    func showHomeView() {
+        //SwiftUI画面に遷移する UserLoginView
+        let homeView = HomeView()
+        let hostingController = UIHostingController(rootView: homeView)
+        navigationController?.pushViewController(hostingController, animated: true)
+    }
+    
     
     func showUserLoginView() {
         //SwiftUI画面に遷移する UserLoginView
@@ -515,11 +500,15 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
     func selectRegistrationType(coordinate:CLLocationCoordinate2D, region:MKCoordinateRegion){
         let itemAction = UIAlertAction(title: "アイテム登録",
                              style: .default) { (action) in
-            self.presentRegistrationView(isItem: true, coordinate: coordinate, region:region)
+            self.presentRegistrationView(coordinate: coordinate, region:region)
         }
         let eventAction = UIAlertAction(title: "イベント登録",
                              style: .default) { (action) in
-            self.presentRegistrationView(isItem: false, coordinate: coordinate,region: region)
+            self.presentRegistrationView(coordinate: coordinate,region: region)
+        }
+        let catAction = UIAlertAction(title: "地域猫登録",
+                             style: .default) { (action) in
+            self.presentRegistrationView(coordinate: coordinate,region: region)
         }
         let cancelAction = UIAlertAction(title: "キャンセル",
                              style: .cancel) { (action) in
@@ -535,25 +524,34 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         case .eventMode:
             alert.addAction(eventAction)
         case .catMode:
-            alert.addAction(eventAction)
+            alert.addAction(catAction)
         }
         alert.addAction(cancelAction)
                
         self.present(alert, animated: true)
     }
     
-    func presentRegistrationView(isItem:Bool, coordinate:CLLocationCoordinate2D,region:MKCoordinateRegion) {
-        if isItem {
+    func presentRegistrationView( coordinate:CLLocationCoordinate2D,region:MKCoordinateRegion) {
+        switch contentMode {
+        case .itemMode:
             let itemRegistrationView = ItemRegistrationView(coordinate: coordinate, region: region,onRegister: { [weak self] item in
                 self?.handleItemRegistration(item: item)
+            },onDelete: {[weak self] item in
+                self?.handleItemDelete(item: item)
             })
             let hostingController = UIHostingController(rootView: itemRegistrationView)
             navigationController?.pushViewController(hostingController, animated: true)
-        } else {
+        case .eventMode:
             let eventRegistrationView = EventRegistrationView(coordinate: coordinate, onRegister: { [weak self] event, image in
                 self?.handleEventRegistration(event: event, image: image!)
             })
             let hostingController = UIHostingController(rootView: eventRegistrationView)
+            navigationController?.pushViewController(hostingController, animated: true)
+        case .catMode:
+            let catRegistrationView = CatRegistrationView(coordinate: coordinate, onRegister: { [weak self] cat in
+                self?.handleCatRegistration(cat: cat)
+            })
+            let hostingController = UIHostingController(rootView: catRegistrationView)
             navigationController?.pushViewController(hostingController, animated: true)
         }
     }
@@ -564,6 +562,8 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         
         let itemRegistrationView = ItemRegistrationView(item: item, coordinate: coordinate, region: self.mapView.region, onRegister: { [weak self] item in
             self?.handleItemRegistration(item: item)
+        },onDelete: { [weak self] item in
+            self?.handleItemDelete(item: item)
         })
         let hostingController = UIHostingController(rootView: itemRegistrationView)
         navigationController?.pushViewController(hostingController, animated: true)
@@ -660,7 +660,7 @@ extension HomeViewController :MKMapViewDelegate {
     }
     
     func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-        setAnnotationsForMode(items: items, events: events)
+        setAnnotationsForMode(items: viewModel.items, events: events)
     }
        
     /// マップスクロール時に現在地の自動追尾を停止する
@@ -675,7 +675,6 @@ extension HomeViewController :MKMapViewDelegate {
         guard gestureRecognizer.state == .began else { return }
         let location = gestureRecognizer.location(in: mapView)
         let coordinate = mapView.convert(location, toCoordinateFrom: mapView)
-        let region = mapView.region
         // 一時的なアノテーションを追加
         let annotation = TemporaryAnnotation()
         annotation.coordinate = coordinate

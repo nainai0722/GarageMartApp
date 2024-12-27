@@ -28,7 +28,7 @@ struct SideMenuView: View {
             }
             Divider()
             Button(action: {
-                onSelectMode(ContentMode.eventMode)
+                onSelectMode(ContentMode.catMode)
                 dismiss()
             }){
                 Text("地域猫マップ")

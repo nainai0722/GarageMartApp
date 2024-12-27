@@ -9,6 +9,7 @@ import Foundation
 import FirebaseDatabase
 import FirebaseStorage
 import UIKit
+import Combine
 
 enum ImageError:Error {
     case notFoundImageData
@@ -29,14 +30,15 @@ class ItemPersistenceManager {
             return
         }
         
-        
         // 1. 画像データをアップロード
-        uploadImage(imageData) { result in
+        uploadImage(item: item,imageData) { result in
             switch result {
             case .success(let url):
                 // 2. URLを取得してitem.imageUrlに設定
                 let itemData = item.toDictionary(url: url)
-                
+                if let image = UIImage(data: imageData){
+                    UserDefaults.standard.set(imageData, forKey: item.id)
+                }
                 // 3. Firebase Realtime Databaseに保存
                 databaseRef.child(storageKey).child(item.id).setValue(itemData) { error, ref in
                     if let error = error {
@@ -44,10 +46,8 @@ class ItemPersistenceManager {
                         completion(.failure(error))
                     } else {
                         print("Item saved successfully!")
-                        // このitemだとImageUrlが格納されていない
-                        var savedItem = item
-                        savedItem.imageUrl = url
-                        completion(.success(savedItem))
+                        guard let item = Item(from: itemData) else { return }
+                        completion(.success(item))
                     }
                 }
                 
@@ -58,9 +58,33 @@ class ItemPersistenceManager {
         }
     }
     
-    func uploadImage(_ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
+    func uploadImage(item:Item, _ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
         let storage = Storage.storage()
-        let storageRef = storage.reference().child("images/\(UUID().uuidString).jpg")
+        let storageRef = storage.reference().child("images/\(item.id).jpg")
+        
+        storageRef.putData(imageData, metadata: nil) { _, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            storageRef.downloadURL { url, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                if let downloadURL = url?.absoluteString {
+                    completion(.success(downloadURL))
+                }
+            }
+        }
+    }
+    
+    func updateImage(item:Item, _ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
+//        let storage = Storage.storage()
+//        let storageRef = storage.reference().child("images/\(UUID().uuidString).jpg")
+        
+        let storageRef = Storage.storage().reference(forURL: item.imageUrl)
         
         storageRef.putData(imageData, metadata: nil) { _, error in
             if let error = error {
@@ -145,18 +169,14 @@ class ItemPersistenceManager {
         }
     }
     
-    // 削除
-    func delete(item: Item) {
-        var items = load()
-        items.removeAll { $0.id == item.id }
-        for item in items {
-            save(item: item){ result in
-                if case .success = result {
-                    return
-                }
-                if case .failure(let error) = result {
-                    print("Failed to delete item: \(error)")
-                }
+    // 削除 TODO: 削除機能はUIに組み込んでいない
+    func delete(item: Item,completion: @escaping (Result<Item, Error>)  -> Void) {
+        let databaseRef = Database.database().reference()
+        databaseRef.child(storageKey).child(item.id).removeValue{ error, _ in
+            if let error = error {
+                print("delete Error.\(error)")
+            }else {
+                print("delete success!")
             }
         }
     }

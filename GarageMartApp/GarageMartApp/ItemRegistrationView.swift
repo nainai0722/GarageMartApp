@@ -14,7 +14,6 @@ import MobileCoreServices
 import PhotosUI
 import Photos
 
-
 struct ItemRegistrationView: View {
     @State var item:Item?
     @State var coordinate: CLLocationCoordinate2D
@@ -40,7 +39,9 @@ struct ItemRegistrationView: View {
     @State private var annotations: [AnnotatedLocation] = [
         AnnotatedLocation(coordinate: CLLocationCoordinate2D(latitude: 35.6895, longitude: 139.6917))
     ]
+    @State private var isDeleted: Bool = false
     let onRegister: (Item) -> Void
+    let onDelete: (Item) -> Void
     
     var body: some View {
         ScrollView {
@@ -59,17 +60,16 @@ struct ItemRegistrationView: View {
                     // フォトライブラリから画像を選択するボタン
                     Button(action: {
                         checkPhotoLibraryPermission()
-//                        showImagePicker.toggle()
                     }) {
                         Text("画像を選択")
                     }
                     .alert(isPresented: $showPermissionAlert) {
-                                    Alert(
-                                        title: Text("写真ライブラリへのアクセスが許可されていません"),
-                                        message: Text("設定アプリでアクセスを許可してください。"),
-                                        primaryButton: .default(Text("設定を開く"), action: openAppSettings),
-                                        secondaryButton: .cancel()
-                                    )
+                        Alert(
+                            title: Text("写真ライブラリへのアクセスが許可されていません"),
+                            message: Text("設定アプリでアクセスを許可してください。"),
+                            primaryButton: .default(Text("設定を開く"), action: openAppSettings),
+                            secondaryButton: .cancel()
+                        )
                                 }
                     .sheet(isPresented: $showImagePicker) {
                         // 画像ピッカーの表示
@@ -149,6 +149,25 @@ struct ItemRegistrationView: View {
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .keyboardType(.numberPad)
                     
+                    if isDeleted {
+                        Button(action: {
+                            guard let selectedImage = selectedImage else { return }
+                            guard let userId = LoginManager.shared.getUserID() else { return }
+                            guard let intPrice = Int(itemPrice), let intQuantity = Int(itemQuantity),let resizedImage = resizeImageToHeight(image: selectedImage, targetHeight: 1024) ,let imageData = resizedImage.jpegData(compressionQuality: 0.7) else { return }
+                            if let item = item {
+                                let deleteItem = Item(id: item.id, name: itemName, description: itemDescription, price: intPrice, category:selectedCategory, coordinate: Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude), stock: intQuantity, stockCategory:selectedStock ,userId:userId, imageData:imageData)
+                                onDelete(deleteItem)
+                            }
+                        }){
+                            Text("削除する")
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                        }
+                    }
+                    
                     Button(action: {
                         // 登録処理
                         guard let selectedImage = selectedImage else { return }
@@ -193,8 +212,10 @@ struct ItemRegistrationView: View {
                 itemQuantity = String(item.stock)
                 fetchImage(item:item)
                 registerButtonText = "アイテムを更新する"
+                isDeleted = true
             } else {
                 registerButtonText = "アイテムを登録する"
+                isDeleted = false
             }
         }
     }
@@ -216,19 +237,19 @@ struct ItemRegistrationView: View {
     private func isFormValid() -> Bool {
         return !itemName.isEmpty && !itemDescription.isEmpty && !itemPrice.isEmpty &&  !itemQuantity.isEmpty && selectedImage != nil
     }
-    private func resizeImageToHeight(image: UIImage, targetHeight: CGFloat) -> UIImage? {
-        let originalSize = image.size
-        let scaleFactor = targetHeight / originalSize.height
-        let targetWidth = originalSize.width * scaleFactor
-        let targetSize = CGSize(width: targetWidth, height: targetHeight)
-        
-        UIGraphicsBeginImageContextWithOptions(targetSize, false, 1.0)
-        image.draw(in: CGRect(origin: .zero, size: targetSize))
-        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        return resizedImage
-    }
+//    private func resizeImageToHeight(image: UIImage, targetHeight: CGFloat) -> UIImage? {
+//        let originalSize = image.size
+//        let scaleFactor = targetHeight / originalSize.height
+//        let targetWidth = originalSize.width * scaleFactor
+//        let targetSize = CGSize(width: targetWidth, height: targetHeight)
+//        
+//        UIGraphicsBeginImageContextWithOptions(targetSize, false, 1.0)
+//        image.draw(in: CGRect(origin: .zero, size: targetSize))
+//        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
+//        UIGraphicsEndImageContext()
+//        
+//        return resizedImage
+//    }
 
     private func updateToCurrentLocation() -> CLLocationCoordinate2D{
         if let location = locationManager.location?.coordinate {
@@ -271,6 +292,12 @@ struct ItemRegistrationView: View {
         locationManager.startUpdatingLocation()
     }
     
+    private func openAppSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+    }
+    // MARK: 写真ライブラリへのアクセス関連処理
     private func checkPhotoLibraryPermission() {
         let status = PHPhotoLibrary.authorizationStatus()
         switch status {
@@ -292,12 +319,6 @@ struct ItemRegistrationView: View {
             showPermissionAlert = true
         }
     }
-    
-    private func openAppSettings() {
-        if let url = URL(string: UIApplication.openSettingsURLString) {
-            UIApplication.shared.open(url)
-        }
-    }
 }
 
 extension View {
@@ -305,7 +326,6 @@ extension View {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
-// MARK: 写真ライブラリへのアクセス関連処理
 
 struct AnnotatedLocation: Identifiable {
     let id = UUID()
@@ -362,6 +382,9 @@ struct SegmentCategoryPickerView: View {
         onRegister: { item in
             print("Preview Registration:")
             print("Item name: \(item.name), Category: \(item.category)")
+        },
+        onDelete: { item in
+            print("Preview Delete")
         }
     )
 }

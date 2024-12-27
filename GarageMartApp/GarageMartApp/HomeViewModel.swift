@@ -11,6 +11,7 @@ import Combine
 class HomeViewModel: ObservableObject {
     private var itemsListener = ItemsListener()
     @Published var items: [Item] = []
+    @Published var events: [Event] = []
     @Published var cats: [Cat] = []
     private var cancellables: Set<AnyCancellable> = []
     private let persistenceManager = ItemPersistenceManager()
@@ -20,6 +21,11 @@ class HomeViewModel: ObservableObject {
         itemsListener.$items
             .sink { [weak self] items in
                 self?.items = items
+            }
+            .store(in: &cancellables)
+        itemsListener.$events
+            .sink { [weak self] events in
+                self?.events = events
             }
             .store(in: &cancellables)
         itemsListener.$cats

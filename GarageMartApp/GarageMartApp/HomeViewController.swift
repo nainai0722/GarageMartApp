@@ -120,12 +120,18 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         switch contentMode {
         case .itemMode:
                //アノテーションをアイテムだけにする
+            self.removeAnnotations(ofType: EventAnnotation.self)
+            self.removeAnnotations(ofType: CatAnnotation.self)
             replaceAnnotations(to: items, createAnnotation: {ItemAnnotation(item: $0)})
         case .eventMode:
                //アノテーションをイベントだけにする
+            self.removeAnnotations(ofType: ItemAnnotation.self)
+            self.removeAnnotations(ofType: CatAnnotation.self)
             replaceAnnotations(to: events, createAnnotation: {EventAnnotation(event: $0)})
         case .catMode:
-            replaceAnnotations(to: cats, createAnnotation: {CatAnnotation(cat: $0)})
+            self.removeAnnotations(ofType: EventAnnotation.self)
+            self.removeAnnotations(ofType: ItemAnnotation.self)
+            replaceAnnotations(to: viewModel.cats, createAnnotation: {CatAnnotation(cat: $0)})
         }
     }
     

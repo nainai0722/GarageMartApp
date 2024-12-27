@@ -169,7 +169,7 @@ class ItemPersistenceManager {
         }
     }
     
-    // 削除 TODO: 削除機能はUIに組み込んでいない
+    // 削除
     func delete(item: Item,completion: @escaping (Result<Item, Error>)  -> Void) {
         let databaseRef = Database.database().reference()
         databaseRef.child(storageKey).child(item.id).removeValue{ error, _ in

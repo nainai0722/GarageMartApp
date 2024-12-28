@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import MapKit
 
 extension UIViewController {
     /// 汎用的なエラーアラート表示メソッド
@@ -41,6 +42,19 @@ extension UIViewController {
             
             // アラートを表示
             self.present(alert, animated: true, completion: nil)
+    }
+    
+    func conformAlert<item:Annotatable>(item:item, mapView:MKMapView) {
+        self.showAlertWithAction(title:"確認",
+                                 message:"登録した場所に移動しますか？",
+                                 actionHandler:{ action in
+                                    let location = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
+                                mapView.setCenter(location, animated: true)
+                                    }
+                                 ,cancelActionHandler:{ cancelAction in
+            
+                                    }
+                                )
     }
 }
 

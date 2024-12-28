@@ -326,22 +326,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             let coordinate = location.coordinate
             let region = MKCoordinateRegion(center: coordinate, span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05))
             self?.mapView.setRegion(region, animated: true)
-            
-//            self?.updateAnnotations()
-//            // 全てのアノテーションを取得
-//            var allAnnotations: [MKPointAnnotation] = []
-//
-//            // ItemAnnotationsとEventAnnotationsをまとめて処理
-//            allAnnotations.append(contentsOf: (self?.viewModel.items.map { ItemAnnotation(item: $0) })!)
-//            allAnnotations.append(contentsOf: (self?.viewModel.events.map { EventAnnotation(event: $0) })!)
-//            
-//            // 検索結果に基づくアノテーションの追加
-//            let nearbyAnnotations = allAnnotations.filter { annotation in
-//                let distance = CLLocation(latitude: annotation.coordinate.latitude, longitude: annotation.coordinate.longitude)
-//                    .distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude))
-//                return distance <= 10000 // 10km以内
-//            }
-//            self?.mapView.addAnnotations(nearbyAnnotations)
         }
     }
     
@@ -379,7 +363,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
                 //戻る
                 self.navigationController?.popViewController(animated: true)
                 // 登録された場所へ移動するアラート
-                self.conformAlert(item:item)
+                self.conformAlert(item:item, mapView: self.mapView)
             }
             if case .failure(let failure) = result {
                 print("登録失敗。 \(failure)")
@@ -398,19 +382,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         self.removeAnnotations(ofType: TemporaryAnnotation.self)
     }
     
-    func conformAlert<item:Annotatable>(item:item) {
-        self.showAlertWithAction(title:"確認",
-                                 message:"登録した場所に移動しますか？",
-                                 actionHandler:{ action in
-                                    let location = CLLocationCoordinate2D(latitude: item.coordinate.latitude, longitude: item.coordinate.longitude)
-                                    self.mapView.setCenter(location, animated: true)
-                                    }
-                                 ,cancelActionHandler:{ cancelAction in
-            
-                                    }
-                                )
-    }
-    
     // 登録されたイベントを処理するメソッド
     private func handleEventRegistration(event: Event, image: UIImage) {
         EventPersistenceManager().save(event: event){ result in
@@ -420,11 +391,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
                 self.navigationController?.popViewController(animated: true)
                 
                 // 登録された場所へ移動するアラート
-                self.conformAlert(item: event)
-//                EventPersistenceManager().loadEvents(completion: { events in
-//                    self.events = events
-//                    self.focusOnFilteredItems(items: self.viewModel.items)
-//                })
+                self.conformAlert(item: event, mapView: self.mapView)
             }
             if case .failure(let failure) = result {
                 print("イベント登録失敗。 \(failure)")
@@ -443,11 +410,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
                 self.navigationController?.popViewController(animated: true)
                 
                 // 登録された場所へ移動するアラート
-                self.conformAlert(item: cat)
-//                CatPersistenceManager().loadCats(completion: { cats in
-//                    self.cats = cats
-//                    self.focusOnFilteredItems(items: self.viewModel.items)
-//                })
+                self.conformAlert(item: cat, mapView: self.mapView)
             }
             if case .failure(let failure) = result {
                 print("イベント登録失敗。 \(failure)")
@@ -589,7 +552,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         let hostingController = UIHostingController(rootView: itemRegistrationView)
         navigationController?.pushViewController(hostingController, animated: true)
     }
-    
     /// アイテム詳細画面を表示する
     /// - Parameter item: アノテーションに含まれるitem情報を渡す
     private func showItemDetail(for item: Item) {
@@ -614,7 +576,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
         present(hostingController, animated: true, completion: nil)
     }
     
-    /// イベント登録画面を表示する
+    /// イベント詳細画面を表示する
     /// - Parameter event: Event型に位置情報をセットして引数として渡す
     private func showEventDetail(for event: Event) {
         // SwiftUIのビューを作成

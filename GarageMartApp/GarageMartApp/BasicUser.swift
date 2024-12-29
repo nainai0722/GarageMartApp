@@ -6,8 +6,7 @@
 //
 
 enum Favorite: String,CaseIterable,Categorable {
-//ウィッシュリストのこと
-    case favorite = "買いたいもの"
+    case favorite = "買いたいもの" //ウィッシュリストのこと
 }
 
 

@@ -29,7 +29,6 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
     private var categories: [ItemCategory] = ItemCategory.allCases
     private var stocks: [StockCategory] = StockCategory.allCases
     private var favorites: [Favorite] = Favorite.allCases
-//    private var filterElement: (any Categorable)?
     private var favoriteList:[Item] = []
     private lazy var scrollView: UIScrollView = {
         let scrollView = UIScrollView()
@@ -527,7 +526,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
             navigationController?.pushViewController(hostingController, animated: true)
         case .eventMode:
             let eventRegistrationView = EventRegistrationView(coordinate: coordinate, onRegister: { [weak self] event, image in
-                self?.handleEventRegistration(event: event, image: image!)
+                self?.handleEventRegistration(event: event)
             })
             let hostingController = UIHostingController(rootView: eventRegistrationView)
             navigationController?.pushViewController(hostingController, animated: true)

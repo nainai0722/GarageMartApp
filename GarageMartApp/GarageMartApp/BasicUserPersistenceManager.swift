@@ -8,7 +8,7 @@
 import Foundation
 import FirebaseDatabase
 
-/// ブックを扱うマネージャー構造体
+/// BasicUserを扱うマネージャー構造体
 class BasicUserPersistenceManager {
     private let storageKey = "BasicUser"
     

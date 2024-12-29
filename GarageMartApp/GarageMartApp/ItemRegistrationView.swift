@@ -237,19 +237,6 @@ struct ItemRegistrationView: View {
     private func isFormValid() -> Bool {
         return !itemName.isEmpty && !itemDescription.isEmpty && !itemPrice.isEmpty &&  !itemQuantity.isEmpty && selectedImage != nil
     }
-//    private func resizeImageToHeight(image: UIImage, targetHeight: CGFloat) -> UIImage? {
-//        let originalSize = image.size
-//        let scaleFactor = targetHeight / originalSize.height
-//        let targetWidth = originalSize.width * scaleFactor
-//        let targetSize = CGSize(width: targetWidth, height: targetHeight)
-//        
-//        UIGraphicsBeginImageContextWithOptions(targetSize, false, 1.0)
-//        image.draw(in: CGRect(origin: .zero, size: targetSize))
-//        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
-//        UIGraphicsEndImageContext()
-//        
-//        return resizedImage
-//    }
 
     private func updateToCurrentLocation() -> CLLocationCoordinate2D{
         if let location = locationManager.location?.coordinate {

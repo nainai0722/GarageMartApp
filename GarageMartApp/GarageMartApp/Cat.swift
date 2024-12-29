@@ -40,6 +40,32 @@ struct Cat: Identifiable,Codable,Equatable,Hashable,Annotatable {
     }
     
     init(
+        id: String = UUID().uuidString,
+        name: String,
+        description: String? = nil,
+        pattern: Pattern = .bicolor,
+        colorCategory: ColorCategory = .black,
+        healthStatus: HealthStatus = .good,
+        ageCategory: AgeCategory = .adult,
+        imageUrl: String? = nil,
+        coordinate: Coordinate = Coordinate(latitude: 0.0, longitude: 0.0),
+        userId: String = "TestUser",
+        registeredDate: Date = Date()
+    ) {
+        self.id = id
+        self.name = name
+        self.description = description ?? ""
+        self.pattern = pattern
+        self.colorCategory = colorCategory
+        self.healthStatus = healthStatus
+        self.ageCategory = ageCategory
+        self.imageUrl = imageUrl ?? ""
+        self.coordinate = coordinate
+        self.userId = userId
+        self.registeredDate = registeredDate
+    }
+    
+    init(
         id: String,
         name: String,
         description: String? = nil,
@@ -62,11 +88,9 @@ struct Cat: Identifiable,Codable,Equatable,Hashable,Annotatable {
         self.ageCategory = ageCategory
         self.imageUrl = imageUrl ?? ""
         self.coordinate = coordinate
-        self.coordinate = coordinate
         self.userId = userId
         self.registeredDate = registeredDate
         self.imageData = imageData
-        
     }
     
     func toDictionary(url: String) -> [String: Any] {
@@ -159,9 +183,9 @@ enum ColorCategory:String,Codable,Equatable, Hashable,CaseIterable,Categorable {
 
 enum HealthStatus: String,Codable,Equatable, Hashable,CaseIterable,Categorable {
     case good = "健康"
-    case bad = "具合が悪そう"
-    case notGood = "あまり良くない"
-    case usual = "特に問題ない"
+    case bad = "病気"
+    case notGood = "良くない"
+    case usual = "問題ない"
 }
 
 enum AgeCategory:String,Codable,Equatable, Hashable,CaseIterable,Categorable {

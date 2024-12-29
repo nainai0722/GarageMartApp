@@ -20,15 +20,12 @@ struct CatRegistrationView: View {
     @State private var description:String = ""
     @State private var selectedHealth: HealthStatus = .good
     @State private var selectedColor: ColorCategory = .black
-    @State private var isDisabled: Bool = true
+    @State private var selectedAge: AgeCategory = .kitten
+    @State private var selectedPattern: Pattern = .bicolor
     @State private var selectedImage:UIImage?
     @State private var showImagePicker = false // 画像ピッカーを表示するためのフラグ
     @Environment(\.presentationMode) private var presentationMode
     
-//    init(cat: Cat? = nil, coordinate: CLLocationCoordinate2D) {
-//        self.cat = cat
-//        self.coordinate = coordinate
-//    }
     init(cat: Cat? = nil, coordinate: CLLocationCoordinate2D, onRegister: @escaping (Cat) -> Void) {
         self.cat = cat
         self.coordinate = coordinate
@@ -43,9 +40,10 @@ struct CatRegistrationView: View {
                     TextField("詳細を入力", text: $description)
                     // 他のフィールドも追加できます
                     SegmentHealthPickerView(selectedHealth: $selectedHealth)
-                    SegmentColorPickerView(selectedColor: $selectedColor)
+                    SegmentAgePickerView(selectedAge: $selectedAge)
+                    ColorGridView(selectedColor: $selectedColor)
+                    PatternGridView(selectedPattern: $selectedPattern)
                 }
-                
                 Section(header: Text("画像")) {
                     // 画像の表示部分
                     if let image = selectedImage {
@@ -75,28 +73,33 @@ struct CatRegistrationView: View {
                         // 画像ピッカーの表示
                         PHPicker(selectedImage: $selectedImage, gpsCoordinates: $gpsCoordinates)
                     }
-
+                    
                 }
-                Button(action:{
-                    let location = Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude)
-                    guard let selectedImage = selectedImage else { return }
-                    guard let userId = LoginManager.shared.getUserID() else { return }
-                    guard let resizedImage = resizeImageToHeight(image: selectedImage, targetHeight: 1024),let imageData = resizedImage.jpegData(compressionQuality: 0.7)
-                    else { return }
-                    let cat = Cat(id: UUID().uuidString, name: "ミケ", pattern: .bicolor, colorCategory: .black, healthStatus: .good, ageCategory: .adult, coordinate: Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude), userId: "TestUser",imageData: imageData)
-                    onRegister(cat)
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Text("登録")
-                }
-                .disabled(validated())
             }
             .navigationTitle("猫を登録")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        let location = Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude)
+                        guard let selectedImage = selectedImage else { return }
+                        guard let userId = LoginManager.shared.getUserID() else { return }
+                        guard let resizedImage = resizeImageToHeight(image: selectedImage, targetHeight: 1024),let imageData = resizedImage.jpegData(compressionQuality: 0.7)
+                        else { return }
+                        let cat = Cat(id: UUID().uuidString, name: name, pattern: .bicolor, colorCategory: selectedColor, healthStatus: selectedHealth, ageCategory: .adult, coordinate: Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude), userId: "TestUser",imageData: imageData)
+                        onRegister(cat)
+                        presentationMode.wrappedValue.dismiss()
+                    }.disabled(validated())
+                }
+            }
         }
     }
     func validated() -> Bool {
         if !name.isEmpty{
-            isDisabled = false
             return false
         }
         return true
@@ -144,48 +147,87 @@ struct SegmentHealthPickerView: View {
                 }
             }
             .pickerStyle(SegmentedPickerStyle())
-            
-            Text("選択中: \(selectedHealth.rawValue)")
         }
         .padding()
     }
 }
 
-struct SegmentColorPickerView: View {
+struct ColorGridView: View {
     @Binding var selectedColor: ColorCategory
-    
+
+    let columns = [GridItem(.adaptive(minimum: 100))]
+
     var body: some View {
         VStack {
             Text("毛の色を選択してください")
-            Picker("Options", selection: $selectedColor) {
+            LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(ColorCategory.allCases, id: \.self) { category in
+                    Text(category.rawValue)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(selectedColor == category ? Color.blue : Color.gray)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                        .onTapGesture {
+                            selectedColor = category
+                        }
+                }
+            }
+            .padding()
+        }
+    }
+}
+
+struct PatternGridView: View {
+    @Binding var selectedPattern: Pattern
+
+    let columns = [GridItem(.adaptive(minimum: 100))]
+
+    var body: some View {
+        VStack {
+            Text("模様や柄を選択してください")
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(Pattern.allCases, id: \.self) { category in
+                    Text(category.rawValue)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(selectedPattern == category ? Color.blue : Color.gray)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                        .onTapGesture {
+                            selectedPattern = category
+                        }
+                }
+            }
+            .padding()
+        }
+    }
+}
+
+
+//selectedAge
+struct SegmentAgePickerView: View {
+    @Binding var selectedAge: AgeCategory
+    
+    var body: some View {
+        VStack {
+            Text("おおよその年齢を選択してください")
+            Picker("Options", selection: $selectedAge) {
+                ForEach(AgeCategory.allCases, id: \.self) { category in
                     Text(category.rawValue)
                         .tag(category)
                 }
             }
             .pickerStyle(SegmentedPickerStyle())
-            
-            Text("選択中: \(selectedColor.rawValue)")
         }
         .padding()
     }
 }
 
 #Preview {
-    let cat = Cat(
-        id: UUID().uuidString,
-        name: "ミケ",
-        pattern: .solid,
-        colorCategory: .black,
-        healthStatus: .good,
-        ageCategory: .senior,
-        coordinate: Coordinate(latitude: 0, longitude: 0),
-        userId: "testUser",
-        imageData: nil
-    )
+    let cat = Cat(name: "はっち")
     CatRegistrationView(cat: cat, coordinate: CLLocationCoordinate2D(),onRegister: { cat in
         print("\(cat.name)")
-    }
-                        )
+    })
 }
 

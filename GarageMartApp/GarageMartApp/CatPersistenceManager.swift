@@ -28,7 +28,7 @@ class CatPersistenceManager {
         
         
         // 1. 画像データをアップロード
-        uploadImage(imageData) { result in
+        uploadImage(cat,imageData) { result in
             switch result {
             case .success(let url):
                 // 2. URLを取得してcat.imageUrlに設定
@@ -55,9 +55,9 @@ class CatPersistenceManager {
         }
     }
     
-    func uploadImage(_ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
+    func uploadImage(_ cat: Cat,_ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
         let storage = Storage.storage()
-        let storageRef = storage.reference().child("images/\(UUID().uuidString).jpg")
+        let storageRef = storage.reference().child("images/\(cat.id).jpg")
         
         storageRef.putData(imageData, metadata: nil) { _, error in
             if let error = error {
@@ -143,17 +143,13 @@ class CatPersistenceManager {
     }
     
     // 削除
-    func delete(cat: Cat) {
-        var cats = load()
-        cats.removeAll { $0.id == cat.id }
-        for cat in cats {
-            save(cat: cat){ result in
-                if case .success = result {
-                    return
-                }
-                if case .failure(let error) = result {
-                    print("Failed to delete cat: \(error)")
-                }
+    func delete(cat: Cat,completion: @escaping (Result<Cat, Error>)  -> Void) {
+        let databaseRef = Database.database().reference()
+        databaseRef.child(storageKey).child(cat.id).removeValue{ error, _ in
+            if let error = error {
+                print("delete Error.\(error)")
+            }else {
+                print("delete success!")
             }
         }
     }

@@ -383,7 +383,7 @@ class HomeViewController: UIViewController,UISearchBarDelegate,@preconcurrency C
     }
     
     // 登録されたイベントを処理するメソッド
-    private func handleEventRegistration(event: Event, image: UIImage) {
+    private func handleEventRegistration(event: Event) {
         EventPersistenceManager().save(event: event){ result in
             if case .success(let item) = result {
                 print("登録されたアイテム: \(item)")

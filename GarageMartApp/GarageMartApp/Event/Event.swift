@@ -15,18 +15,19 @@ struct Event:Codable,Annotatable {
     var endDate: Date // イベントの終了日
     var coordinate: Coordinate
     var imageData: Data?
-    var imageUrl: String?
+    var imageUrl: String
     var userId : String
     var createdAt: Date = Date() // 登録日時
     
     // 初期化メソッド
-    init(title: String, description: String, startDate: Date, endDate: Date, coordinate: Coordinate, image: Data? = nil,userId:String) {
+    init(title: String, description: String, startDate: Date, endDate: Date, coordinate: Coordinate, image: Data? = nil,userId:String,imageUrl: String? = nil) {
         self.title = title
         self.description = description
         self.startDate = startDate
         self.endDate = endDate
         self.coordinate = coordinate
         self.imageData = image
+        self.imageUrl = imageUrl ?? ""
         self.userId = userId
     }
     
@@ -54,6 +55,7 @@ struct Event:Codable,Annotatable {
             let id = dictionary["id"] as? String,
             let title = dictionary["title"] as? String,
             let description = dictionary["description"] as? String,
+            let imageUrl = dictionary["imageUrl"] as? String,
             let coordinateDict = dictionary["coordinate"] as? [String: Double],
             let latitude = coordinateDict["latitude"],
             let longitude = coordinateDict["longitude"],
@@ -77,6 +79,7 @@ struct Event:Codable,Annotatable {
         self.startDate = startDate
         self.endDate = endDate
         self.imageData = imageData
+        self.imageUrl = imageUrl
         self.userId = userId
         self.createdAt = createdAt
     }
@@ -93,6 +96,7 @@ struct Event:Codable,Annotatable {
         case imageData
         case userId
         case createdAt
+        case imageUrl
     }
 
     // 開催中かどうかを判定するメソッド

@@ -24,14 +24,14 @@ class EventPersistenceManager {
             return
         }
         
-        uploadImage(imageData) { result in
+        uploadImage(event,imageData) { result in
             switch result {
                 case .success(let url):
                 // 2. URLを取得してitem.imageUrlに設定
                 let eventData = event.toDictionary(url: url)
                 
                 // 3. Firebase Realtime Databaseに保存
-                databaseRef.child(self.storageKey).childByAutoId().setValue(eventData) { error, ref in
+                databaseRef.child(self.storageKey).child(event.id).setValue(eventData) { error, ref in
                     if let error = error {
                         print("Error saving item: \(error.localizedDescription)")
                         completion(.failure(error))
@@ -50,9 +50,9 @@ class EventPersistenceManager {
         }
     }
     
-    func uploadImage(_ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
+    func uploadImage(_ event: Event,_ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
         let storage = Storage.storage()
-        let storageRef = storage.reference().child("images/\(UUID().uuidString).jpg")
+        let storageRef = storage.reference().child("images/\(event.id).jpg")
         
         storageRef.putData(imageData, metadata: nil) { _, error in
             if let error = error {
@@ -103,18 +103,15 @@ class EventPersistenceManager {
         }
     }
     
-    // 削除
-    func delete(event: Event) {
-        var events = load()
-        events.removeAll { $0.id == event.id }
-        for event in events {
-            save(event: event){ result in
-                if case .success = result {
-                    return
-                }
-                if case .failure(let error) = result {
-                    print("Failed to delete item: \(error)")
-                }
+    // 削除TODO: 削除のUI実装していない
+    func delete(event: Event,completion: @escaping (Result<Event, Error>) -> Void) {
+        let databaseRef = Database.database().reference()
+        databaseRef.child(storageKey).child(event.id).removeValue{
+            error, _ in
+            if let error = error {
+                print("delete Error.\(error)")
+            }else {
+                print("delete success!")
             }
         }
     }

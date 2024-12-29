@@ -31,7 +31,7 @@ class ItemPersistenceManager {
         }
         
         // 1. 画像データをアップロード
-        uploadImage(item: item,imageData) { result in
+        uploadImage(item,imageData) { result in
             switch result {
             case .success(let url):
                 // 2. URLを取得してitem.imageUrlに設定
@@ -58,7 +58,7 @@ class ItemPersistenceManager {
         }
     }
     
-    func uploadImage(item:Item, _ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
+    func uploadImage(_ item:Item, _ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
         let storage = Storage.storage()
         let storageRef = storage.reference().child("images/\(item.id).jpg")
         
@@ -81,9 +81,6 @@ class ItemPersistenceManager {
     }
     
     func updateImage(item:Item, _ imageData: Data, completion: @escaping (Result<String, Error>) -> Void) {
-//        let storage = Storage.storage()
-//        let storageRef = storage.reference().child("images/\(UUID().uuidString).jpg")
-        
         let storageRef = Storage.storage().reference(forURL: item.imageUrl)
         
         storageRef.putData(imageData, metadata: nil) { _, error in
